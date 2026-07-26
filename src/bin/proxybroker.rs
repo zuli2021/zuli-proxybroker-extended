@@ -119,6 +119,19 @@ impl SelectStrategy {
 }
 
 #[cfg(feature = "server")]
+fn parse_positive_usize(value: &str) -> Result<usize, String> {
+    let parsed = value
+        .parse::<usize>()
+        .map_err(|e| format!("invalid positive integer: {e}"))?;
+
+    if parsed == 0 {
+        return Err("value must be at least 1".to_string());
+    }
+
+    Ok(parsed)
+}
+
+#[cfg(feature = "server")]
 #[derive(clap::Args, Default)]
 struct ServeArgs {
     /// Address to listen on.
@@ -170,6 +183,19 @@ struct ServeArgs {
     /// Per-request timeout in seconds.
     #[arg(long, default_value_t = 8)]
     timeout: u64,
+
+    /// Maximum concurrent checks used only while filling the proxy pool.
+    ///
+    /// When omitted, the existing FindQuery default is preserved.
+    #[arg(long, value_parser = parse_positive_usize)]
+    fill_max_conn: Option<usize>,
+
+    /// Attempts per protocol used only while filling the proxy pool.
+    ///
+    /// This is separate from `--max-tries`, which controls how many different
+    /// pooled proxies may be attempted for one client request.
+    #[arg(long, value_parser = parse_positive_usize)]
+    fill_max_tries: Option<usize>,
 
     /// Drop a proxy once its error rate exceeds this (0.0–1.0).
     #[arg(long, default_value_t = 0.5)]
@@ -813,7 +839,7 @@ async fn serve_cmd(broker: Broker, args: ServeArgs) -> Result<(), Box<dyn std::e
         // Find proxies to fill the pool, filtered by the serve flags (types/lvl/strict/post/
         // dnsbl/countries). The flag→query mapping lives in the pure `serve_query`. D2: seed the
         // pool with stored history first, then top up from the live find.
-        let stream = broker.find(serve_query(&args)).await?;
+        let stream = broker.find(serve_fill_query(&args)).await?;
         Pool::spawn(
             futures_util::stream::iter(history).chain(stream),
             pool_config,
@@ -1031,6 +1057,24 @@ fn serve_query(args: &ServeArgs) -> FindQuery {
         b = b.countries(args.countries.clone());
     }
     b.build()
+}
+
+/// Build the query used only for the initial pool fill.
+///
+/// Pool-fill overrides intentionally do not affect adaptive re-checking.
+#[cfg(feature = "server")]
+fn serve_fill_query(args: &ServeArgs) -> FindQuery {
+    let mut query = serve_query(args);
+
+    if let Some(max_conn) = args.fill_max_conn {
+        query.max_conn = max_conn;
+    }
+
+    if let Some(max_tries) = args.fill_max_tries {
+        query.retry.max_tries = max_tries;
+    }
+
+    query
 }
 
 async fn grab(broker: Broker, args: GrabArgs) -> Result<(), Box<dyn std::error::Error>> {
@@ -1544,6 +1588,76 @@ mod tests {
         assert!(q.strict);
         assert!(q.post);
         assert_eq!(q.dnsbl, vec!["zen.spamhaus.org".to_string()]);
+    }
+
+    #[test]
+    fn serve_fill_query_threads_pool_fill_tuning() {
+        let args = ServeArgs {
+            fill_max_conn: Some(37),
+            fill_max_tries: Some(1),
+            ..Default::default()
+        };
+
+        let query = serve_fill_query(&args);
+
+        assert_eq!(query.max_conn, 37);
+        assert_eq!(query.retry.max_tries, 1);
+    }
+
+    #[test]
+    fn serve_fill_query_preserves_existing_defaults_when_unset() {
+        let args = ServeArgs::default();
+        let query = serve_fill_query(&args);
+        let defaults = FindQuery::default();
+
+        assert_eq!(query.max_conn, defaults.max_conn);
+        assert_eq!(query.retry.max_tries, defaults.retry.max_tries);
+    }
+
+    #[test]
+    fn serve_cli_parses_pool_fill_tuning() {
+        let cli = Cli::try_parse_from([
+            "proxybroker",
+            "serve",
+            "--types",
+            "HTTP",
+            "--fill-max-conn",
+            "64",
+            "--fill-max-tries",
+            "1",
+        ])
+        .unwrap();
+
+        match cli.command {
+            Command::Serve(args) => {
+                assert_eq!(args.fill_max_conn, Some(64));
+                assert_eq!(args.fill_max_tries, Some(1));
+            }
+            _ => panic!("expected serve"),
+        }
+    }
+
+    #[test]
+    fn serve_cli_rejects_zero_pool_fill_tuning() {
+        assert!(Cli::try_parse_from([
+            "proxybroker",
+            "serve",
+            "--types",
+            "HTTP",
+            "--fill-max-tries",
+            "0",
+        ])
+        .is_err());
+
+        assert!(Cli::try_parse_from([
+            "proxybroker",
+            "serve",
+            "--types",
+            "HTTP",
+            "--fill-max-conn",
+            "0",
+        ])
+        .is_err());
     }
 
     fn serve_countries(argv: &[&str]) -> Vec<String> {
