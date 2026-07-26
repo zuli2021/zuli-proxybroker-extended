@@ -1124,6 +1124,57 @@ fn choose_proto(proxy: &Proxy, scheme: Scheme) -> Proto {
     }
 }
 
+/// Choose the negotiation protocol used to establish the upstream stream.
+///
+/// `Proto::Https` is appropriate when checking that a proxy can reach an HTTPS
+/// target, but its negotiator performs a TLS upgrade itself. Real CONNECT and
+/// SOCKS5 clients require an opaque byte tunnel so that their own end-to-end
+/// TLS passes through unchanged.
+fn relay_negotiation_proto(proto: Proto, frontend: &Frontend) -> Proto {
+    if proto == Proto::Https && matches!(frontend, &Frontend::HttpConnect | &Frontend::Socks5) {
+        Proto::Connect80
+    } else {
+        proto
+    }
+}
+
+#[cfg(test)]
+mod relay_negotiation_proto_tests {
+    use super::*;
+
+    #[test]
+    fn https_capability_uses_raw_connect_for_http_connect() {
+        assert_eq!(
+            relay_negotiation_proto(Proto::Https, &Frontend::HttpConnect),
+            Proto::Connect80
+        );
+    }
+
+    #[test]
+    fn https_capability_uses_raw_connect_for_socks5() {
+        assert_eq!(
+            relay_negotiation_proto(Proto::Https, &Frontend::Socks5),
+            Proto::Connect80
+        );
+    }
+
+    #[test]
+    fn http_forward_is_not_rewritten() {
+        assert_eq!(
+            relay_negotiation_proto(Proto::Https, &Frontend::HttpForward),
+            Proto::Https
+        );
+    }
+
+    #[test]
+    fn existing_raw_tunnel_protocol_is_not_rewritten() {
+        assert_eq!(
+            relay_negotiation_proto(Proto::Socks5, &Frontend::HttpConnect),
+            Proto::Socks5
+        );
+    }
+}
+
 /// Where a relay attempt ended — the discriminant B2's retry loop needs. Classification is
 /// **positional** (decided by how far the relay got), so it is exhaustive by construction: a new
 /// [`ProxyError`] variant cannot accidentally become retryable-past-a-commit.
@@ -1166,7 +1217,11 @@ async fn relay(
         };
     // Pass the proxy's upstream credentials (B8) into the negotiation (SOCKS5 RFC 1929 / CONNECT
     // Proxy-Authorization). `None` for scraped proxies.
-    let mut upstream = match negotiate(proto, tcp, target, timeout, proxy.auth()).await {
+    // CONNECT and SOCKS5 clients own the end-to-end TLS session. Preserve the
+    // selected protocol for pool accounting, but negotiate an opaque tunnel.
+    let negotiation_proto = relay_negotiation_proto(proto, &req.frontend);
+    let mut upstream = match negotiate(negotiation_proto, tcp, target, timeout, proxy.auth()).await
+    {
         Err(e) => return RetryableFailure(e),
         Ok(u) => u,
     };
