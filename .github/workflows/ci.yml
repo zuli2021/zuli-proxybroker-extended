@@ -93,8 +93,72 @@ jobs:
       # The FROM-scratch image: proves it is self-contained (no libc, no data files) offline.
       - name: Docker scratch image smoke
         run: |
-          docker build -t pb-scratch .
-          docker run --rm pb-scratch --version | grep -q "IP Geolocation by DB-IP"
+          set -euo pipefail
+          IMAGE=pb-scratch
+
+          docker build -t "$IMAGE" .
+
+          user="$(docker image inspect --format '{{.Config.User}}' "$IMAGE")"
+          test "$user" = "65532:65532"
+
+          entrypoint="$(docker image inspect --format '{{json .Config.Entrypoint}}' "$IMAGE")"
+          test "$entrypoint" = '["/proxybroker"]'
+
+          cmd="$(docker image inspect --format '{{json .Config.Cmd}}' "$IMAGE")"
+          test "$cmd" = '["serve","--host","0.0.0.0:8888"]'
+
+          ports="$(docker image inspect --format '{{json .Config.ExposedPorts}}' "$IMAGE")"
+          test "$ports" = '{"8888/tcp":{}}'
+
+          container_id=""
+          cleanup() {
+            if [ -n "$container_id" ]; then
+              docker rm -f "$container_id" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+
+          container_id="$(docker create "$IMAGE")"
+
+          path="$(docker container inspect --format '{{.Path}}' "$container_id")"
+          test "$path" = "/proxybroker"
+
+          args="$(docker container inspect --format '{{json .Args}}' "$container_id")"
+          test "$args" = '["serve","--host","0.0.0.0:8888"]'
+
+          container_user="$(docker container inspect --format '{{.Config.User}}' "$container_id")"
+          test "$container_user" = "65532:65532"
+
+          version_output="$(
+            docker run --rm \
+              --network none \
+              --read-only \
+              --cap-drop=ALL \
+              --security-opt=no-new-privileges \
+              "$IMAGE" \
+              --version
+          )"
+          printf '%s\n' "$version_output"
+          case "$version_output" in
+            *"IP Geolocation by DB-IP"*) ;;
+            *) echo "missing DB-IP attribution in --version output" >&2; exit 1 ;;
+          esac
+
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop=ALL \
+            --security-opt=no-new-privileges \
+            "$IMAGE" \
+            serve --help
+
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop=ALL \
+            --security-opt=no-new-privileges \
+            "$IMAGE" \
+            find --help
 
       - name: Shellcheck the installer
         run: shellcheck install.sh

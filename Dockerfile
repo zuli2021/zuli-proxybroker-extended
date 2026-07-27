@@ -15,4 +15,7 @@ RUN cargo build --release --locked
 FROM scratch
 COPY --from=build /src/target/release/proxybroker /proxybroker
 COPY LICENSE LICENSE-DATA NOTICE /
+EXPOSE 8888/tcp
+USER 65532:65532
 ENTRYPOINT ["/proxybroker"]
+CMD ["serve", "--host", "0.0.0.0:8888"]
