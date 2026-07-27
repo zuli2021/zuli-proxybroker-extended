@@ -39,9 +39,11 @@ curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/
 ```
 
 The installer is intended for supported Linux and macOS targets. Windows is not
-supported through `install.sh`. Pre-release installer hardening and
-release-asset validation are still pending, so this is a future release
-instruction rather than a currently verified installation path.
+supported through `install.sh`. Installer hardening has been implemented and
+locally reviewed: SHA-256 verification is mandatory and fail-closed, and
+`LICENSE`, `NOTICE`, and `LICENSE-DATA` are retained. Live validation against
+real public GitHub Release assets remains deferred because no Zuli release
+exists yet, so this remains a future release instruction.
 
 ### Build from source
 
@@ -94,8 +96,15 @@ docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:latest s
 
 The application defaults to binding on `127.0.0.1:8888`. A containerized server
 intended to be reached through a published Docker port must explicitly use
-`serve --host 0.0.0.0:8888`, as shown above. Multi-architecture Docker support
-is not claimed, and Docker Desktop/WSL validation has not yet been completed.
+`serve --host 0.0.0.0:8888`, as shown above. Local container validation completed
+on the current Docker Desktop-backed Linux amd64 environment: the committed
+scratch image built with an 11.41 MB context and ran as UID/GID `65532:65532`.
+Restricted `--version`, `serve --help`, and `find --help` checks passed with no
+network, a read-only root filesystem, all capabilities dropped, and
+no-new-privileges. Actual GitHub Actions execution, GHCR publication, and
+multi-architecture validation remain deferred. Broad Windows, WSL, and Docker
+Desktop compatibility is not claimed, and live proxy-server traffic was not
+validated.
 
 ## Usage
 
