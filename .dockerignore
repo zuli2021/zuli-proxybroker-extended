@@ -1,0 +1,24 @@
+# Git metadata is not required by the image build.
+.git
+.git/**
+
+# Host Cargo build outputs can be very large and must never enter the context.
+target
+target/**
+
+# Generated mdBook output is not an image build input.
+book/book
+book/book/**
+
+# Local development/tool state.
+.superpowers
+.superpowers/**
+
+# Editor, compiler, and operating-system artifacts.
+**/*.rs.bk
+*.pdb
+.DS_Store
+**/.DS_Store
+*~
+*.swp
+*.swo
