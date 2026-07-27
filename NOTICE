@@ -1,22 +1,41 @@
 Zuli ProxyBroker Extended
 Copyright 2026 Zuli2021 — modifications to this distribution
 
-This distribution is an independently maintained derivative of
-proxybroker-rs.
+Zuli ProxyBroker Extended is an independently maintained derivative of the
+upstream project proxybroker-rs (<https://github.com/TurtIeSocks/proxybroker-rs>).
+Zuli claims only modifications to this distribution and does not claim
+authorship of the upstream project. Original upstream copyright, attribution,
+license notices, and prior statements of change remain preserved below.
 
-Modifications introduced by Zuli2021 in 2026 include:
+Evidence-supported changes introduced by Zuli2021 in 2026 include:
 
-  1. Configurable concurrency and retry limits for the initial serve
-     proxy-pool fill operation.
+  1. Distribution identity. The Cargo package is
+     zuli-proxybroker-extended; the Rust library crate and CLI executable
+     remain proxybroker.
 
-  2. Corrected HTTPS CONNECT relay negotiation for HTTP CONNECT and
-     SOCKS5 client frontends.
+  2. Proxy-pool and tunnel behavior. Initial proxy-pool fill concurrency and
+     retry limits are configurable. Relay negotiation for HTTPS-capable
+     upstream proxies used by HTTP CONNECT and SOCKS5 frontends was corrected
+     to use opaque tunnels, a design intended to preserve client-owned
+     end-to-end TLS.
 
-  3. Preservation of client-owned end-to-end TLS through upstream
-     HTTPS-capable proxy tunnels.
+  3. Focused automated tests cover pool-fill controls, CLI parsing, defaults,
+     and relay-protocol selection.
 
-Original copyright, licence, attribution, and statement-of-change notices
-are retained below.
+  4. Distribution governance. Automatic crates.io publication was removed
+     pending separate approval. The installer was retargeted to Zuli, made
+     fail-closed for mandatory SHA-256 verification, and changed to retain
+     LICENSE, NOTICE, and LICENSE-DATA. Release workflow logic was hardened
+     for concurrency, publication ordering, stable/prerelease handling, and
+     the GHCR latest-tag policy.
+
+  5. Current-project README and mdBook documentation were migrated to the
+     Zuli identity while preserving upstream provenance and historical records.
+
+For engineering traceability, modified source files retain file-level
+modification notices where established, while non-source distribution changes
+are recorded in this NOTICE and the repository's Git history. Original upstream
+notices remain preserved.
 
 ================================================================================
 

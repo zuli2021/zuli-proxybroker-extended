@@ -2,11 +2,18 @@
 LICENSE FOR BUNDLED GEOLOCATION DATA
 ================================================================================
 
+Zuli modification notice: This distribution is Zuli ProxyBroker Extended
+(<https://github.com/zuli2021/zuli-proxybroker-extended>), an independently
+maintained derivative of the upstream project proxybroker-rs
+(<https://github.com/TurtIeSocks/proxybroker-rs>). Zuli's changes to this file
+are limited to current-distribution naming and repository references. DB-IP
+attribution, CC BY 4.0 terms, and upstream provenance remain retained.
+
 This file covers ONLY the geolocation database bundled at:
 
     data/dbip-country-lite.mmdb
 
-It does NOT cover the source code of proxybroker-rs, which is licensed under
+It does NOT cover the source code of Zuli ProxyBroker Extended, which is licensed under
 the Apache License, Version 2.0 (see LICENSE).
 
 --------------------------------------------------------------------------------
@@ -16,7 +23,7 @@ REQUIRED ATTRIBUTION
     IP Geolocation by DB-IP (https://db-ip.com)
 
 CC BY 4.0 requires this attribution to be preserved by anyone redistributing
-the data. proxybroker-rs surfaces it in --version output, the README, and this
+the data. Zuli ProxyBroker Extended surfaces it in --version output, the README, and this
 file.
 
 --------------------------------------------------------------------------------
