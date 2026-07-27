@@ -1,3 +1,6 @@
+// Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+// See NOTICE for attribution and the statement of changes.
+
 //! A local rotating proxy server: accepts client connections and relays each through a pool
 //! of checked proxies, retrying on a different proxy when one fails. `server.py`.
 //!

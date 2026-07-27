@@ -2159,49 +2159,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proxybroker"
-version = "0.3.0"
-dependencies = [
- "bytes",
- "clap",
- "criterion",
- "crossterm",
- "flate2",
- "futures-core",
- "futures-util",
- "hickory-resolver",
- "http-body-util",
- "hyper",
- "hyper-util",
- "indexmap",
- "indicatif",
- "libc",
- "maxminddb",
- "notify",
- "rand 0.9.5",
- "ratatui",
- "redis",
- "regex",
- "reqwest",
- "rmcp",
- "rusqlite",
- "rustls",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tokio-socks",
- "tokio-util",
- "tower-service",
- "tracing",
- "tracing-subscriber",
- "url",
- "webpki-roots",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4217,3 +4174,46 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zuli-proxybroker-extended"
+version = "0.4.0"
+dependencies = [
+ "bytes",
+ "clap",
+ "criterion",
+ "crossterm",
+ "flate2",
+ "futures-core",
+ "futures-util",
+ "hickory-resolver",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "indexmap",
+ "indicatif",
+ "libc",
+ "maxminddb",
+ "notify",
+ "rand 0.9.5",
+ "ratatui",
+ "redis",
+ "regex",
+ "reqwest",
+ "rmcp",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tokio-socks",
+ "tokio-util",
+ "tower-service",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "webpki-roots",
+]

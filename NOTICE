@@ -1,3 +1,25 @@
+Zuli ProxyBroker Extended
+Copyright 2026 Zuli2021 — modifications to this distribution
+
+This distribution is an independently maintained derivative of
+proxybroker-rs.
+
+Modifications introduced by Zuli2021 in 2026 include:
+
+  1. Configurable concurrency and retry limits for the initial serve
+     proxy-pool fill operation.
+
+  2. Corrected HTTPS CONNECT relay negotiation for HTTP CONNECT and
+     SOCKS5 client frontends.
+
+  3. Preservation of client-owned end-to-end TLS through upstream
+     HTTPS-capable proxy tunnels.
+
+Original copyright, licence, attribution, and statement-of-change notices
+are retained below.
+
+================================================================================
+
 proxybroker-rs
 Copyright 2026 proxybroker-rs contributors
 

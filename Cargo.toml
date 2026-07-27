@@ -1,11 +1,11 @@
 [package]
-name = "proxybroker"
-version = "0.3.0"
+name = "zuli-proxybroker-extended"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.85"
-description = "Find, check, and serve public HTTP(S) and SOCKS4/5 proxies. Library + CLI."
-repository = "https://github.com/TurtIeSocks/proxybroker-rs"
-homepage = "https://github.com/TurtIeSocks/proxybroker-rs"
+description = "Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies. Extended Rust library and CLI."
+repository = "https://github.com/zuli2021/zuli-proxybroker-extended"
+homepage = "https://github.com/zuli2021/zuli-proxybroker-extended"
 license = "Apache-2.0"
 readme = "README.md"
 keywords = ["proxy", "socks", "http", "scraper", "checker"]
@@ -20,6 +20,9 @@ categories = ["network-programming", "command-line-utilities"]
 # matches in ANY directory, which would pull tests/data/README.md (the City-fixture provenance)
 # into the package. Anchoring keeps the published crate free of anything under tests/.
 include = ["src/**/*", "examples/**/*", "data/*", "/LICENSE", "/LICENSE-DATA", "/NOTICE", "/README.md"]
+
+[lib]
+name = "proxybroker"
 
 [features]
 default = ["cli", "server", "geo", "geo-bundled"]
