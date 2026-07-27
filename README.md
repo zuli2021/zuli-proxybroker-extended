@@ -1,47 +1,101 @@
-# proxybroker
+# Zuli ProxyBroker Extended
 
-[![crates.io](https://img.shields.io/crates/v/proxybroker.svg)](https://crates.io/crates/proxybroker)
-[![docs.rs](https://img.shields.io/docsrs/proxybroker)](https://docs.rs/proxybroker)
-[![downloads](https://img.shields.io/crates/d/proxybroker.svg)](https://crates.io/crates/proxybroker)
-[![license](https://img.shields.io/crates/l/proxybroker.svg)](LICENSE)
+Zuli ProxyBroker Extended is a Rust library and CLI for finding, validating, and
+serving rotating public HTTP(S), SOCKS4, and SOCKS5 proxies.
 
-Find, check, and serve public HTTP(S) and SOCKS4/5 proxies. A Rust library and CLI.
+It is an independently maintained derivative of
+[proxybroker-rs](https://github.com/TurtIeSocks/proxybroker-rs). The upstream
+project derives from [proxybroker2](https://github.com/bluet/proxybroker2),
+itself the maintained successor to
+[ProxyBroker](https://github.com/constverum/ProxyBroker).
 
-A rewrite of [proxybroker2](https://github.com/bluet/proxybroker2) (Python/asyncio) in
-Rust/tokio, which is itself the maintained successor to
-[ProxyBroker](https://github.com/constverum/ProxyBroker). Both are Apache-2.0; this is a
-derivative work and carries the same licence. See [NOTICE](NOTICE) for attribution and a
-statement of changes.
+## Zuli-specific engineering
 
-## Install
+- Configurable initial proxy-pool fill concurrency and retry limits.
+- Corrected relay-protocol selection for HTTPS-capable upstream proxies used by
+  HTTP CONNECT and SOCKS5 tunnel frontends.
+- Relay selection is designed to preserve client-owned end-to-end TLS.
+- Focused automated tests cover pool-fill controls, CLI parsing, defaults, and
+  relay-negotiation selection.
+
+> **Public-proxy warning:** Public proxies are untrusted third-party
+> infrastructure. They must not be used for credentials, account logins,
+> payment information, private API tokens, or other sensitive traffic.
+
+Original notices are retained in [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Bundled DB-IP data has separate licensing described in
+[LICENSE-DATA](LICENSE-DATA). The source distribution remains under the
+Apache License 2.0.
+
+## Installation
+
+### Release installer
+
+Only after the first tagged Zuli release is published, use the release
+installer:
 
 ```sh
-cargo add proxybroker          # library
-cargo install proxybroker      # CLI
-
-# prebuilt binary (Linux musl / macOS), no toolchain — verifies a checksum, installs to ~/.local/bin:
-curl -fsSL https://raw.githubusercontent.com/TurtIeSocks/proxybroker-rs/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/main/install.sh | sh
 ```
 
-Docker — a `FROM scratch` image (just the static binary; all geo/provider data is embedded).
-Pull the published image from the GitHub Container Registry (tagged per release, plus `latest`):
+The installer is intended for supported Linux and macOS targets. Windows is not
+supported through `install.sh`. Pre-release installer hardening and
+release-asset validation are still pending, so this is a future release
+instruction rather than a currently verified installation path.
+
+### Build from source
+
+After the public repository is published, build from source with Rust 1.85 or
+newer, Cargo, and Git. Network access is required by proxy discovery and
+checking operations.
 
 ```sh
-docker run --rm ghcr.io/turtiesocks/proxybroker-rs:latest find --types HTTP --limit 5
+git clone https://github.com/zuli2021/zuli-proxybroker-extended.git
+cd zuli-proxybroker-extended
+cargo build --release --locked
+./target/release/proxybroker --version
 ```
 
-Or build it yourself from the repo:
+From a cloned checkout, install the CLI with:
 
 ```sh
-docker build -t proxybroker .
-docker run --rm proxybroker find --types HTTP --limit 5
+cargo install --path . --locked
 ```
 
-The binary is a fully static `x86_64`/`aarch64` musl build (TLS is ring-only rustls — no
-aws-lc-rs), so it has no runtime libc or data-file dependencies.
+The installed executable name remains `proxybroker`.
 
-All three commands — `grab`, `find`, `serve` — work end-to-end. See
-`docs/systematic-refactor/` for the port's design record.
+### Rust library dependency
+
+No Zuli package is currently published to crates.io. After the public repository
+is available, applications can use a direct Git dependency:
+
+```toml
+[dependencies]
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git" }
+```
+
+Rust imports remain:
+
+```rust
+use proxybroker::{Broker, FindQuery, Proto, TypeSpec};
+```
+
+After the first release, pin this Git dependency to a tag or commit rather than
+relying indefinitely on an unpinned branch.
+
+### Docker
+
+Only after the first stable tagged Zuli release successfully publishes the image,
+run:
+
+```sh
+docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:latest serve --host 0.0.0.0:8888
+```
+
+The application defaults to binding on `127.0.0.1:8888`. A containerized server
+intended to be reached through a published Docker port must explicitly use
+`serve --host 0.0.0.0:8888`, as shown above. Multi-architecture Docker support
+is not claimed, and Docker Desktop/WSL validation has not yet been completed.
 
 ## Usage
 
