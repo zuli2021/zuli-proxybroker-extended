@@ -5,8 +5,9 @@ name: Release
 #
 #   git tag v0.1.2 && git push origin v0.1.2
 #
-# Or run manually (Actions → Release → Run workflow) with an existing tag to build and
-# attach binaries without moving the GHCR latest tag.
+# Or run manually (Actions → Release → Run workflow) with an existing tag. The same
+# validated tag drives release assets and image publication; only canonical stable tags
+# may move the GHCR latest tag.
 #
 # The tag MUST be `v<version>` and match the version in Cargo.toml, or nothing ships.
 # crates.io publication is intentionally disabled until separately reviewed and approved.
@@ -23,7 +24,7 @@ on:
 
 # Never run two releases for the same tag at once.
 concurrency:
-  group: release-${{ inputs.tag || github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -37,6 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
+      package_version: ${{ steps.package_version.outputs.version }}
+      is_stable: ${{ steps.resolve.outputs.is_stable }}
+      is_prerelease: ${{ steps.resolve.outputs.is_prerelease }}
     steps:
       - name: Resolve and validate the release tag
         id: resolve
@@ -51,7 +55,16 @@ jobs:
             echo "::error::invalid tag '$TAG' (expected vMAJOR.MINOR.PATCH)"
             exit 1
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            IS_STABLE=true
+            IS_PRERELEASE=false
+          else
+            IS_STABLE=false
+            IS_PRERELEASE=true
+          fi
+          printf 'tag=%s\n' "$TAG" >> "$GITHUB_OUTPUT"
+          printf 'is_stable=%s\n' "$IS_STABLE" >> "$GITHUB_OUTPUT"
+          printf 'is_prerelease=%s\n' "$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
@@ -60,16 +73,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Verify the tag matches the crate version
+        id: package_version
         env:
           TAG: ${{ steps.resolve.outputs.tag }}
         run: |
-          VERSION="$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')"
+          VERSION="$(cargo metadata --format-version 1 --no-deps --locked | jq -r '.packages[0].version')"
           echo "Cargo.toml version: $VERSION"
           echo "Release tag:        $TAG"
           if [ "$TAG" != "v$VERSION" ]; then
             echo "::error::tag '$TAG' does not match Cargo.toml version 'v$VERSION'"
             exit 1
           fi
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
 
       # The full test suite is designed to run offline (local mock servers only), so it is
       # safe in CI and catches regressions before anything ships.
@@ -94,9 +109,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.verify.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG already exists"
+          elif [ "$IS_PRERELEASE" = "true" ]; then
+            gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag --prerelease
           else
             gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
           fi
@@ -179,16 +197,11 @@ jobs:
           checksum: sha256
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Publish the FROM-scratch image to the GitHub Container Registry. Same image the `dist` job in
-  # ci.yml smoke-tests (repo-root Dockerfile, single build context) — here it is tagged with the
-  # release version and `latest`, then pushed. `if: github.event_name == 'push'` restricts this to
-  # a real `v*` tag push. A manual workflow_dispatch that back-fills binaries for an older tag
-  # must not move the rolling `latest` container tag backwards.
-  # PRs and branch pushes never trigger this workflow at all (see `on:`), so the push is gated to
-  # release events by construction. Auth is the built-in GITHUB_TOKEN — no external secret.
+  # Publish the FROM-scratch image to the GitHub Container Registry only after the GitHub Release
+  # and every binary upload complete. Every validated release receives a version tag; only a
+  # canonical stable release receives `latest`. Auth is the built-in GITHUB_TOKEN.
   docker:
-    needs: verify
-    if: github.event_name == 'push'
+    needs: [verify, create-release, binaries]
     runs-on: ubuntu-latest
     permissions:
       contents: read # checkout
@@ -207,8 +220,9 @@ jobs:
 
       # Compute the image reference + tags WITHOUT interpolating the ref into a shell. The image
       # path is lowercased automatically (GHCR requires it; `github.repository` may carry capitals).
-      # The validated tag from `verify` (already regex-checked to vMAJOR.MINOR.PATCH) drives a semver
-      # pattern that emits the bare version (v0.1.2 -> 0.1.2); `latest` is added unconditionally.
+      # The validated tag from `verify` drives a semver pattern that emits the bare version
+      # (v0.1.2 -> 0.1.2). Disable metadata-action's implicit latest behavior so the only
+      # `latest` tag below is explicitly gated by verify's strict stable-tag output.
       # metadata-action also emits an org.opencontainers.image.source label linking the package to
       # this repo — required or the first push to a new package 403s even with packages: write.
       - name: Compute image tags and labels
@@ -216,9 +230,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: |
+            latest=false
           tags: |
             type=semver,pattern={{version}},value=${{ needs.verify.outputs.tag }}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ needs.verify.outputs.is_stable == 'true' }}
 
       # Reuses the repo-root Dockerfile + context (linux/amd64, matching the ci.yml smoke test). No
       # QEMU multi-arch: the Dockerfile compiles the crate from source, so emulated aarch64 builds
