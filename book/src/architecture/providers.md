@@ -1,8 +1,8 @@
 # Providers
 
-A *provider* is a page that lists proxies. proxybroker-rs treats providers as **data, not code**:
-provider sites rot continuously (measurement on 2026-07-15 found ~10 of proxybroker2's 38 registry
-entries already dead), so a dead provider is a config edit, not a recompile-and-republish.
+A *provider* is a page that lists proxies. Zuli ProxyBroker Extended treats providers as **data, not
+code**: provider sites rot continuously (measurement on 2026-07-15 found ~10 of proxybroker2's 38
+registry entries already dead), so a dead provider is a config edit, not a recompile-and-republish.
 
 ## The `ProviderSpec` model
 

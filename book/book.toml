@@ -1,5 +1,5 @@
 [book]
-title = "proxybroker-rs"
+title = "Zuli ProxyBroker Extended"
 authors = ["Rin"]
 description = "Find, check, and serve public HTTP(S) and SOCKS4/5 proxies — a Rust library and CLI."
 language = "en"
@@ -8,8 +8,8 @@ src = "src"
 [output.html]
 default-theme = "navy"
 preferred-dark-theme = "navy"
-git-repository-url = "https://github.com/TurtIeSocks/proxybroker-rs"
-edit-url-template = "https://github.com/TurtIeSocks/proxybroker-rs/edit/main/book/{path}"
+git-repository-url = "https://github.com/zuli2021/zuli-proxybroker-extended"
+edit-url-template = "https://github.com/zuli2021/zuli-proxybroker-extended/edit/main/book/{path}"
 no-section-label = false
 
 [output.html.fold]

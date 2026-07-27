@@ -1,24 +1,29 @@
 # Data & licensing
 
-proxybroker-rs keeps a strict line between its **code** and its **bundled data**, because they carry
-different licenses with different obligations. Getting this wrong is precisely the mistake the upstream
-project made; the separation below is deliberate.
+Zuli ProxyBroker Extended keeps a strict line between its **code** and its **bundled data**, because
+they carry different licenses with different obligations. It is a derivative distribution: original
+upstream `proxybroker-rs` attribution and the statement of changes remain explicit in `NOTICE`.
+Keeping these license scopes separate is deliberate because the code and bundled data have distinct
+licensing terms and attribution obligations.
+
+> **Publication status.** The Zuli repository is not public yet. The repository links below identify
+> the planned Zuli distribution locations; a local checkout contains the corresponding root files.
 
 ## Two licenses, two files
 
 | Artifact | License | File |
 | --- | --- | --- |
-| All source code | Apache License 2.0 | [`LICENSE`](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/LICENSE) |
-| Bundled geo database (`data/dbip-country-lite.mmdb`) | CC BY 4.0 | [`LICENSE-DATA`](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/LICENSE-DATA) |
+| All source code | Apache License 2.0 | [`LICENSE`](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/LICENSE) |
+| Bundled geo database (`data/dbip-country-lite.mmdb`) | CC BY 4.0 | [`LICENSE-DATA`](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/LICENSE-DATA) |
 
 The blanket Apache-2.0 grant on the code does **not** extend to the geo data. `LICENSE-DATA` covers
 only the bundled MMDB and nothing else; the two never imply each other. Attribution and the statement
-of changes for the derivative work live in [`NOTICE`](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/NOTICE).
+of changes for the derivative work live in [`NOTICE`](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/NOTICE).
 
 ## Why DB-IP Country Lite, not GeoLite2
 
 The Python original bundles MaxMind's GeoLite2-Country database inside its distributed package.
-proxybroker-rs does **not** redistribute any MaxMind data. It bundles **DB-IP Country Lite** instead,
+Zuli ProxyBroker Extended does **not** redistribute any MaxMind data. It bundles **DB-IP Country Lite** instead,
 for a concrete legal reason:
 
 - **GeoLite2's EULA is update-or-destroy.** It obliges licensees to destroy superseded copies within
@@ -59,6 +64,6 @@ cargo build --no-default-features --features cli,server
 
 `geo-bundled` is the only feature that embeds licensed data; turning it off (or building
 `--no-default-features`) ships a crate free of any third-party data. See
-[`NOTICE`](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/NOTICE) and
-[`LICENSE-DATA`](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/LICENSE-DATA) for the full
+[`NOTICE`](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/NOTICE) and
+[`LICENSE-DATA`](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/LICENSE-DATA) for the full
 terms and the statement of changes from the original work.

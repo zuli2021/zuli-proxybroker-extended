@@ -1,7 +1,9 @@
 # Examples
 
-Every runnable example lives in [`examples/`](https://github.com/TurtIeSocks/proxybroker-rs/tree/main/examples).
-Run one with `cargo run --example <name>`.
+Every runnable example lives in the repository's `examples/` directory. After the public Zuli
+repository is created, it will be available at the planned
+[`examples/`](https://github.com/zuli2021/zuli-proxybroker-extended/tree/main/examples) path. Run one
+with `cargo run --example <name>`.
 
 Six examples declare `required-features = ["server"]` in `Cargo.toml`. Because
 `server` is part of the default feature set, the plain `cargo run --example

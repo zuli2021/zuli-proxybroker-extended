@@ -1,76 +1,94 @@
 # Installation
 
-There are four ways to get `proxybroker`: from crates.io (library or CLI), from source, as a
-prebuilt static binary, or as a Docker image.
-
-## From crates.io
-
-```sh
-cargo add proxybroker          # add the library to your project
-cargo install proxybroker      # install the CLI binary
-```
-
-`cargo install` builds the binary with the default features (`cli`, `server`, `geo`,
-`geo-bundled`), so the resulting `proxybroker` includes the local server and the bundled
-country database out of the box.
+Zuli ProxyBroker Extended is usable from a local source checkout today. It is **not** published to
+crates.io or docs.rs, and no public Zuli GitHub Release or GHCR image has been verified. The
+repository, installer, and image locations below describe the planned Zuli distribution after it is
+publicly available.
 
 ## Build from source
 
+Local source builds require:
+
+- Rust 1.85 or newer;
+- Cargo; and
+- Git.
+
+In an existing checkout, build the release binary with the locked dependency set:
+
 ```sh
-git clone https://github.com/TurtIeSocks/proxybroker-rs
-cd proxybroker-rs
-cargo build --release
+cargo build --release --locked
 ```
 
-The binary lands at `target/release/proxybroker`.
+After the public Zuli repository is created, clone it with:
 
-The project builds on the **stable** Rust toolchain — a pinned `rust-toolchain.toml` sets
-`channel = "stable"`, so the build is reproducible regardless of your default toolchain. A
-library that needs nightly is one most people cannot use; nothing here requires it. The crate
-sets `rust-version = "1.85"` as its minimum supported Rust version.
+```sh
+git clone https://github.com/zuli2021/zuli-proxybroker-extended.git
+cd zuli-proxybroker-extended
+cargo build --release --locked
+```
+
+The executable remains `proxybroker` at `target/release/proxybroker`. The Cargo package is
+`zuli-proxybroker-extended`, while the Rust library crate remains `proxybroker`. The pinned
+`rust-toolchain.toml` selects stable Rust and the package declares Rust 1.85 as its minimum.
+
+## Rust dependency
+
+Until a separately approved crates.io publication exists, depend on the planned repository source:
+
+```toml
+[dependencies]
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git" }
+```
+
+No Zuli crates.io package currently exists. After the first release, consumers should pin a tag or
+commit rather than relying on an unpinned branch.
 
 ## Prebuilt static binary (`install.sh`)
 
-For Linux (musl) or macOS, an installer script downloads the release binary for your OS/arch,
-**verifies its SHA-256 checksum**, and installs it — no toolchain, no `sudo`:
+After the first tagged Zuli release, the installer will download the matching release archive for
+Linux (musl) or macOS, **verify its SHA-256 checksum**, and install it without a build toolchain or
+`sudo`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TurtIeSocks/proxybroker-rs/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/main/install.sh | sh
 ```
 
-By default it installs to `~/.local/bin`; the script warns if that directory is not on your
-`PATH`. Two environment variables tune it:
+SHA-256 verification is mandatory: the installer requires either `sha256sum` or `shasum` and
+fails rather than installing an archive with a missing, malformed, or mismatched checksum. These
+environment variables control the future installation:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PROXYBROKER_VERSION` | latest release tag | Which release to install. |
+| `PROXYBROKER_VERSION` | latest release tag after one exists | Which release to install. |
 | `PROXYBROKER_BIN_DIR` | `$HOME/.local/bin` | Install directory. |
+| `PROXYBROKER_DOC_DIR` | `$HOME/.local/share/doc/zuli-proxybroker-extended` | Directory for `LICENSE`, `NOTICE`, and `LICENSE-DATA`. |
 
-Supported targets: `x86_64`/`aarch64` Linux musl, and `x86_64`/`aarch64` Apple Darwin. On
-Windows, download the `.zip` from the Releases page.
+The binary is installed under `PROXYBROKER_BIN_DIR`, while the three legal files are installed
+under `PROXYBROKER_DOC_DIR`. Supported installer targets are `x86_64`/`aarch64` Linux musl and
+`x86_64`/`aarch64` Apple Darwin. Windows is not supported by `install.sh`.
 
-The Linux binary is a **fully static musl build** — TLS is ring-only rustls (no aws-lc-rs) —
-so it has no runtime libc or data-file dependencies. The geo database and provider list are
-embedded into the binary itself, so it stands alone.
+The Linux release binary is intended to be a fully static musl build, with the geo database and
+provider list embedded. No release asset has been verified publicly yet.
 
 ## Docker (`FROM scratch`)
 
-The bundled `Dockerfile` produces a `FROM scratch` image containing just the static binary
-plus the licence files. Because the geo database and provider list are embedded, the image
-needs no data volumes.
+The future GHCR image path is `ghcr.io/zuli2021/zuli-proxybroker-extended`. No public image,
+multi-architecture support, or Docker Desktop/WSL validation is claimed here.
 
-Each release pushes the image to the GitHub Container Registry (GHCR), tagged with the release
-version plus a moving `latest`. Pull and run it directly — no build required:
+After a verified tagged release publishes an image, replace `<tag>` with the release version:
 
 ```sh
-docker run --rm ghcr.io/turtiesocks/proxybroker-rs:latest find --types HTTP --limit 5
+docker run --rm ghcr.io/zuli2021/zuli-proxybroker-extended:<tag> find --types HTTP --limit 5
+docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:<tag> \
+  serve --host 0.0.0.0:8888
 ```
 
-Or build it yourself from the repo:
+Publishing a port from the container requires `serve --host 0.0.0.0:8888`. A local checkout can
+also build the repository Dockerfile, subject to the local Docker environment:
 
 ```sh
-docker build -t proxybroker .
-docker run --rm proxybroker find --types HTTP --limit 5
+docker build -t zuli-proxybroker-extended .
+docker run --rm zuli-proxybroker-extended find --types HTTP --limit 5
 ```
 
 ## Feature flags in one paragraph

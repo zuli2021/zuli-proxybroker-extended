@@ -1,5 +1,10 @@
 # Roadmap & Waves
 
+> **Historical upstream record.** This page documents the original
+> `proxybroker-rs` project and is retained for provenance. Upstream repository
+> links and historical decisions on this page are intentional and do not describe
+> the current Zuli release plan unless explicitly restated elsewhere.
+
 proxybroker-rs was built past 1.0 in **waves**: each wave batches features that
 touch the same module, respect the same dependency order, and can ship as one
 campaign of one-commit-per-item changes. The full roadmap, with per-item effort

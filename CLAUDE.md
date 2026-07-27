@@ -1,8 +1,12 @@
-# proxybroker-rs — project guide for Claude
+# Zuli ProxyBroker Extended — project guide for Claude
 
-Find, check, and serve public HTTP(S)/SOCKS4/5 proxies. **Library-first** Rust crate (`proxybroker`)
-with a thin CLI shell; a from-scratch port of Python's [proxybroker2](https://github.com/bluet/proxybroker2).
-Design record lives in `docs/systematic-refactor/` (trace → goals → map → decisions) and `docs/roadmap/`.
+Find, check, and serve public HTTP(S)/SOCKS4/5 proxies. **Zuli ProxyBroker Extended** is a
+library-first Rust distribution: its Cargo package is `zuli-proxybroker-extended`, while its Rust
+library crate and CLI executable remain `proxybroker`. It is an independently maintained derivative
+of [`proxybroker-rs`](https://github.com/TurtIeSocks/proxybroker-rs), itself a Rust/tokio port of
+[proxybroker2](https://github.com/bluet/proxybroker2). The design record lives in
+`docs/systematic-refactor/` (trace → goals → map → decisions) and `docs/roadmap/`. Upstream
+attribution remains in `NOTICE` and repository history.
 
 ## Build, test, lint
 
@@ -72,14 +76,20 @@ dedicated `store-redis` job.
 `.github/workflows/ci.yml` has three jobs: **test** (fmt/clippy/all-features/no-default/cli-only),
 **dist** (static musl build + FROM-scratch Docker + shellcheck `install.sh`), **store-redis**.
 
-Release: bump `Cargo.toml` version, commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag
-(which **must** equal the Cargo.toml version) fires `release.yml` → crates.io publish + 7 platform
-binaries + GHCR image. `workflow_dispatch` builds **binaries only** (no crates.io/`latest` move).
-Binary-matrix quirk: `aarch64-linux-musl` cross-builds on x86 `ubuntu-latest`, `x86_64-macos` on
-Apple-Silicon `macos-14` (their "native" runners don't build cleanly on GitHub's fleet).
+Release policy: crates.io publication is intentionally disabled pending separate approval. After the
+public Zuli repository exists, a valid version tag must still equal the `Cargo.toml` version. The
+reviewed release workflow first runs `cargo test --all-features --locked` and
+`cargo package --locked`, then creates the GitHub Release, uploads the binary matrix, and publishes
+the GHCR image. Only a canonical stable tag (`vMAJOR.MINOR.PATCH`) may move `latest`; accepted
+prerelease tags receive only their version-specific image tag. GitHub Release and GHCR publication
+occur only through that reviewed workflow after valid-tag verification; this guide does not claim
+that any public Zuli release or image already exists. Binary-matrix quirk:
+`aarch64-linux-musl` cross-builds on x86 `ubuntu-latest`, `x86_64-macos` on Apple-Silicon
+`macos-14` (their "native" runners do not build cleanly on GitHub's fleet).
 
 ## Docs
 
-mdBook lives in `book/` and auto-deploys to GitHub Pages via `.github/workflows/docs.yml` on pushes to
-`main` touching `book/**`. **When you change CLI flags, features, metrics, or public API, update the
-matching `book/src/**` page** (build/preview with `mdbook build book` / `mdbook serve book`).
+mdBook lives in `book/`. The configured `.github/workflows/docs.yml` is intended to build and deploy
+it to GitHub Pages on qualifying `main` pushes after Pages is enabled; no public Zuli Pages deployment
+is verified yet. **When you change CLI flags, features, metrics, or public API, update the matching
+`book/src/**` page** (build/preview with `mdbook build book` / `mdbook serve book`).

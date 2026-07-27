@@ -1,5 +1,10 @@
 # The Systematic Refactor
 
+> **Historical upstream record.** This page documents the original
+> `proxybroker-rs` project and is retained for provenance. Upstream repository
+> links and historical decisions on this page are intentional and do not describe
+> the current Zuli release plan unless explicitly restated elsewhere.
+
 proxybroker-rs is a from-scratch Rust port of Python's
 [proxybroker2](https://github.com/bluet/proxybroker2). It was not a line-by-line
 transliteration — it was a deliberate, evidence-driven refactor that treated the

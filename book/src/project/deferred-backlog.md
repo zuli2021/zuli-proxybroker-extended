@@ -1,5 +1,10 @@
 # Deferred Backlog
 
+> **Historical upstream record.** This page documents the original
+> `proxybroker-rs` project and is retained for provenance. Upstream repository
+> links and historical decisions on this page are intentional and do not describe
+> the current Zuli release plan unless explicitly restated elsewhere.
+
 Deliberate **YAGNI deferrals** — features that were scoped, understood, and
 consciously *not* built because no consumer needs them yet. Each ships nothing on
 speculation; each has a concrete trigger that would justify building it. The

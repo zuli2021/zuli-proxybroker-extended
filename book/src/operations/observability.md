@@ -1,9 +1,8 @@
 # Observability
 
-proxybroker-rs exposes four ways to see what it is doing at runtime: a Prometheus
-metrics endpoint, structured JSON logs, a live progress bar, and live-reload of a
-served pool file. Each is opt-in — some behind a build feature, all behind a flag —
-so the default binary stays lean and silent.
+Zuli ProxyBroker Extended exposes four ways to see what it is doing at runtime: a Prometheus metrics
+endpoint, structured JSON logs, a live progress bar, and live-reload of a served pool file. Each is
+opt-in — some behind a build feature, all behind a flag — so the default binary stays lean and silent.
 
 | Facility | Flag | Feature | Applies to |
 |---|---|---|---|
@@ -82,10 +81,10 @@ Both `render_metrics` and `serve_metrics` are gated on the `metrics` feature.
 
 ### Grafana dashboard
 
-A ready-made dashboard covering all six series lives at
-[`grafana/proxybroker-dashboard.json`](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/grafana/proxybroker-dashboard.json).
-Import it in Grafana (Dashboards → New → Import → *Upload JSON file*) and pick your Prometheus data
-source when prompted. It has six panels — pool size by scheme, available proxies, error rate,
+After the public Zuli repository is created, a ready-made dashboard will be available at the planned
+[`grafana/proxybroker-dashboard.json`](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/grafana/proxybroker-dashboard.json)
+path. Import it in Grafana (Dashboards → New → Import → *Upload JSON file*) and pick your Prometheus
+data source when prompted. It has six panels — pool size by scheme, available proxies, error rate,
 serve-vs-probe latency, and eviction/rotation rates.
 
 ## Structured JSON logs (`--log-format json`)

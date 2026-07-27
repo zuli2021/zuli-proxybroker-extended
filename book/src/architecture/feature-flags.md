@@ -1,8 +1,8 @@
 # Feature flags
 
-proxybroker-rs is a library first and a CLI second, so almost everything beyond the core find/check
-engine is behind a cargo feature. This keeps the default binary lean and lets pure-library users pull
-in only what they need. Every feature below is declared in `Cargo.toml`.
+Zuli ProxyBroker Extended is a library first and a CLI second, so almost everything beyond the core
+find/check engine is behind a cargo feature. This keeps the default binary lean and lets pure-library
+users pull in only what they need. Every feature below is declared in `Cargo.toml`.
 
 ## The default set
 

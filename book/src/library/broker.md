@@ -1,6 +1,6 @@
 # Broker
 
-The [`Broker`](https://docs.rs/proxybroker) is the entry point to the library: it turns a set of
+The [`Broker`](#broker) is the entry point to the library: it turns a set of
 [providers](../architecture/providers.md) into a stream of proxies. Two operations sit on top of it:
 
 | Method | What it does | Returns |

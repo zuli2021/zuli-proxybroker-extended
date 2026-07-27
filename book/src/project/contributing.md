@@ -1,14 +1,30 @@
 # Contributing
 
-proxybroker-rs is a single-maintainer project with a deliberately strict, fully
-offline test suite. This page covers what you need to build it, run the checks CI
-enforces, and understand the provider liveness audit.
+Zuli ProxyBroker Extended is a single-maintainer project with a deliberately strict, fully offline
+test suite. This page covers what you need to build it, run the checks its CI configuration enforces,
+and understand the provider liveness audit.
+
+## Repository and collaboration
+
+The public Zuli repository, issue tracker, and pull-request surface are not available yet. After the
+repository is created, clone the planned source and use its focused review workflow:
+
+```sh
+git clone https://github.com/zuli2021/zuli-proxybroker-extended.git
+cd zuli-proxybroker-extended
+```
+
+After publication, report issues at the planned
+[issue tracker](https://github.com/zuli2021/zuli-proxybroker-extended/issues) and open focused pull
+requests through the planned
+[pull-request surface](https://github.com/zuli2021/zuli-proxybroker-extended/pulls). Do not claim a
+release or tag without repository evidence.
 
 ## Building
 
 The project builds on the **stable** Rust toolchain — `rust-toolchain.toml` pins
-stable, so a fresh checkout uses it automatically. A crates.io library that needs
-nightly is a library most people cannot use; keeping to stable is a hard constraint.
+stable, so a fresh checkout uses it automatically. A Rust library that needs nightly is a library
+most people cannot use; keeping to stable is a hard constraint.
 
 ```sh
 # Default build: cli + server + geo + geo-bundled.
@@ -28,8 +44,8 @@ cargo build --features metrics,progress,watch,store-sqlite
 ## Running the checks
 
 CI enforces exactly the checks you should run locally: formatting, clippy with
-warnings-as-errors, and the full test suite across the feature matrix. Run them
-before opening a PR.
+warnings-as-errors, and the full test suite across the feature matrix. Run them before opening a PR
+after the public repository is available.
 
 ```sh
 cargo fmt --all --check
@@ -43,8 +59,10 @@ it fails rather than silently updating `Cargo.lock`.
 
 ## The CI matrix
 
-The [CI workflow](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/.github/workflows/ci.yml)
-runs on every pull request and every push to `main`. It is split into parallel jobs.
+The CI configuration is `.github/workflows/ci.yml` in a local checkout. After the public Zuli
+repository is created, it will be available at the planned
+[CI workflow](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/.github/workflows/ci.yml).
+It is split into parallel jobs.
 
 | Job | What it does |
 |---|---|
@@ -92,10 +110,9 @@ The bundled provider registry (50 curated sources, see the
 
 - **Offline** — a registry integrity test and format-archetype fixtures guard the
   registry's *shape*. These run in the normal test job.
-- **Liveness** — a separate
-  [Provider audit workflow](https://github.com/TurtIeSocks/proxybroker-rs/blob/main/.github/workflows/provider-audit.yml)
-  fetches every bundled source and flags any that yield zero proxies (dead or
-  format-changed).
+- **Liveness** — after the public repository is created, the configured
+  [Provider audit workflow](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/.github/workflows/provider-audit.yml)
+  will fetch every bundled source and flag any that yield zero proxies (dead or format-changed).
 
 The audit is **scheduled** (Mondays 06:00 UTC) and manually triggerable, and
 deliberately does **not** run on pull requests or pushes — a source rotting upstream

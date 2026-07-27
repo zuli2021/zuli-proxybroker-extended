@@ -1,6 +1,6 @@
 # Persistence (`--state`)
 
-By default proxybroker-rs keeps a proxy's history for a single process. A flat
+By default Zuli ProxyBroker Extended keeps a proxy's history for a single process. A flat
 `find --save`/`serve --load` snapshot restores *which* proxies to try, but it
 cannot accumulate a success EWMA across runs or record "last seen 3 days ago".
 Durable cross-run state (internally "D2") escalates to a real store **only** for

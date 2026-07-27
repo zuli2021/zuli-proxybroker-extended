@@ -1,7 +1,9 @@
 # Architecture overview
 
-proxybroker-rs is a from-scratch Rust port of Python's proxybroker2. The crate is organized
-as a set of small modules with exactly one home for each concept, wired together by the
+Zuli ProxyBroker Extended is an independently maintained derivative of
+[`proxybroker-rs`](https://github.com/TurtIeSocks/proxybroker-rs), itself a Rust/tokio port of
+Python's proxybroker2. Its Rust library crate remains `proxybroker` and is organized as a set of
+small modules with exactly one home for each concept, wired together by the
 [`Broker`](../library/broker.md). This page is the map: what each module does, how data flows
 through a `find` / `grab` / `serve` run, and the one ownership rule that shapes the whole design.
 
