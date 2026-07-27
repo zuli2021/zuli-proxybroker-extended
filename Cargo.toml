@@ -15,7 +15,7 @@ categories = ["network-programming", "command-line-utilities"]
 # sublicense the data — that is precisely the mistake proxybroker2 made.
 # data/* covers the geo mmdb (runtime, via include_bytes!) AND providers.yaml (runtime, via
 # include_str!). Missing providers.yaml here makes a published crate fail to compile — caught
-# by `cargo publish --dry-run`, which is why release CI runs it.
+# by `cargo package --locked`, which release CI runs before creating artifacts.
 # Root-file entries are anchored with a leading "/": the bare gitignore-style glob "README.md"
 # matches in ANY directory, which would pull tests/data/README.md (the City-fixture provenance)
 # into the package. Anchoring keeps the published crate free of anything under tests/.

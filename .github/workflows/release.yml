@@ -1,16 +1,15 @@
 name: Release
 
-# On a pushed version tag: publish the crate to crates.io AND attach prebuilt CLI binaries
-# to a GitHub Release.
+# On a pushed version tag: create a GitHub Release, attach prebuilt CLI binaries,
+# and publish the container image to GHCR.
 #
 #   git tag v0.1.2 && git push origin v0.1.2
 #
-# Or run manually (Actions → Release → Run workflow) with an existing tag to build/attach
-# binaries ONLY — no crates.io publish. Useful for adding binaries to a release that shipped
-# before this workflow existed.
+# Or run manually (Actions → Release → Run workflow) with an existing tag to build and
+# attach binaries without moving the GHCR latest tag.
 #
-# The tag MUST be `v<version>` and match the version in Cargo.toml, or nothing ships. Requires
-# a CARGO_REGISTRY_TOKEN repository secret for the crates.io step.
+# The tag MUST be `v<version>` and match the version in Cargo.toml, or nothing ships.
+# crates.io publication is intentionally disabled until separately reviewed and approved.
 on:
   push:
     tags:
@@ -18,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing version tag to build binaries for (e.g. v0.1.1). Binaries only — does NOT publish to crates.io."
+        description: "Existing version tag to build and attach binaries for (e.g. v0.4.0)."
         required: true
         type: string
 
@@ -32,8 +31,8 @@ permissions:
 
 jobs:
   # Gate everything on a single check: the tag is well-formed, matches the crate version, and
-  # the (offline) test suite passes. Both `publish` and `binaries` depend on this, so neither
-  # ships for a mistagged or broken commit. The resolved tag is exported for downstream jobs.
+  # the test suite and distributable package validation pass. All release jobs depend on this,
+  # so nothing ships for a mistagged or broken commit. The resolved tag is exported for downstream jobs.
   verify:
     runs-on: ubuntu-latest
     outputs:
@@ -77,30 +76,8 @@ jobs:
       - name: Test
         run: cargo test --all-features --locked
 
-  publish:
-    needs: verify
-    # Only when a tag is pushed. Manual (workflow_dispatch) runs build binaries only and never
-    # republish — crates.io versions are immutable, so a re-publish would fail anyway.
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.verify.outputs.tag }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      # `cargo publish` re-runs this verify-build itself; running it first fails fast with a
-      # clearer log if packaging is broken (e.g. a runtime file missing from `include`).
-      - name: Package (verify the published tarball builds)
+      - name: Package validation
         run: cargo package --locked
-
-      - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --locked
 
   # Create the GitHub Release once, up front. A pushed git tag is NOT a Release, and none of
   # the matrix jobs reliably creates one (especially on a manual run, where the git ref is a
@@ -205,9 +182,8 @@ jobs:
   # Publish the FROM-scratch image to the GitHub Container Registry. Same image the `dist` job in
   # ci.yml smoke-tests (repo-root Dockerfile, single build context) — here it is tagged with the
   # release version and `latest`, then pushed. `if: github.event_name == 'push'` restricts this to
-  # a real `v*` tag push, mirroring the crates.io `publish` job: a manual workflow_dispatch (which
-  # back-fills binaries for an OLD tag) must NOT move the moving `latest` pointer backwards, and a
-  # registry image — like an immutable crate version — should ship only from a genuine tag event.
+  # a real `v*` tag push. A manual workflow_dispatch that back-fills binaries for an older tag
+  # must not move the rolling `latest` container tag backwards.
   # PRs and branch pushes never trigger this workflow at all (see `on:`), so the push is gated to
   # release events by construction. Auth is the built-in GITHUB_TOKEN — no external secret.
   docker:
