@@ -101,7 +101,8 @@ on the current Docker Desktop-backed Linux amd64 environment: the committed
 scratch image built with an 11.41 MB context and ran as UID/GID `65532:65532`.
 Restricted `--version`, `serve --help`, and `find --help` checks passed with no
 network, a read-only root filesystem, all capabilities dropped, and
-no-new-privileges. Actual GitHub Actions execution, GHCR publication, and
+no-new-privileges. Current GitHub Actions validation completed successfully,
+including the Docker scratch-image smoke test. GHCR publication and
 multi-architecture validation remain deferred. Broad Windows, WSL, and Docker
 Desktop compatibility is not claimed, and live proxy-server traffic was not
 validated.
