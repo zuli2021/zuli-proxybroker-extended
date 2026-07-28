@@ -167,5 +167,5 @@ printf 'Target: %s\n' "$target"
 printf 'IP Geolocation by DB-IP (https://db-ip.com), licensed CC BY 4.0\n'
 case ":$PATH:" in
 *":$BIN_DIR:"*) ;;
-*) printf 'Note: %s is not on your PATH - add it, e.g. export PATH="%s:$PATH"\n' "$BIN_DIR" "$BIN_DIR" ;;
+*) printf 'Note: %s is not on your PATH - add it, e.g. export PATH="%s:%s"\n' "$BIN_DIR" "$BIN_DIR" "\$PATH" ;;
 esac
