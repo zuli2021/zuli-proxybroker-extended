@@ -1,6 +1,6 @@
 [package]
 name = "zuli-proxybroker-extended"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 rust-version = "1.85"
 description = "Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies. Extended Rust library and CLI."

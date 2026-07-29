@@ -9,6 +9,7 @@ use proxybroker::ProxyError;
 use proxybroker::Store; // the trait: upsert/load
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Barrier};
 
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -162,16 +163,19 @@ fn migration_from_v0_creates_table() {
 fn two_connections_can_write_concurrently() {
     // The D3 re-checker opens a SECOND connection to the same --state DB while the D2 upsert
     // observer holds the first. Guards that two connections both persist all their writes; the
-    // busy_timeout in SqliteStore::open lets a contended writer wait rather than error SQLITE_BUSY
-    // (the exact contention is timing-dependent, so this is a regression guard, not a forced race).
+    // busy timeout and bounded contention retries in SqliteStore::upsert let a contended writer wait
+    // rather than error SQLITE_BUSY.
     let path = tmp_db();
     SqliteStore::open(&path).unwrap(); // create + migrate once
 
+    let barrier = Arc::new(Barrier::new(2));
     let mut threads = Vec::new();
     for t in 0..2u8 {
         let path = path.clone();
+        let barrier = Arc::clone(&barrier);
         threads.push(std::thread::spawn(move || {
             let store = SqliteStore::open(&path).unwrap();
+            barrier.wait();
             for i in 0..150u16 {
                 let mut p = Proxy::new(
                     format!("10.{t}.{}.{}", i / 256, i % 256).parse().unwrap(),

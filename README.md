@@ -40,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/
 ```
 
 The installer resolves the latest GitHub Release by default. Set
-`PROXYBROKER_VERSION=v0.4.0` to select this release explicitly.
+`PROXYBROKER_VERSION=v0.4.1` to select this release explicitly.
 
 Installation is fail-closed: SHA-256 verification is mandatory, and `LICENSE`,
 `NOTICE`, and `LICENSE-DATA` are retained with the installed documentation.
@@ -74,7 +74,7 @@ release tag as a direct Git dependency:
 
 ```toml
 [dependencies]
-proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v0.4.0" }
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v0.4.1" }
 ```
 
 Rust imports remain:
@@ -91,7 +91,7 @@ unpinned branch.
 Run the stable versioned container image with:
 
 ```sh
-docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:0.4.0 serve --host 0.0.0.0:8888
+docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:0.4.1 serve --host 0.0.0.0:8888
 ```
 
 The application defaults to binding on `127.0.0.1:8888`. A containerized server
@@ -103,7 +103,7 @@ Restricted `--version`, `serve --help`, and `find --help` checks passed with no
 network, a read-only root filesystem, all capabilities dropped, and
 no-new-privileges.
 
-The release workflow publishes the `0.4.0` and `latest` image tags only after the
+The release workflow publishes the `0.4.1` and `latest` image tags only after the
 GitHub Release and all binary assets succeed. The container image currently
 targets Linux amd64; Linux aarch64 users should use the corresponding release
 binary. Broad Windows, WSL, and Docker Desktop compatibility is not claimed,

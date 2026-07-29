@@ -44,10 +44,19 @@ mod sqlite {
     use rusqlite::{params, Connection};
     use std::collections::BTreeMap;
     use std::sync::Mutex;
+    use std::time::Duration;
 
     /// Current on-disk schema version, written to `PRAGMA user_version`. Bump + add a migration arm
     /// when the single table changes.
     pub const SCHEMA_VERSION: i64 = 1;
+
+    const SQLITE_BUSY_TIMEOUT: Duration = Duration::from_secs(5);
+    const SQLITE_RETRY_DELAYS: [Duration; 4] = [
+        Duration::from_millis(10),
+        Duration::from_millis(25),
+        Duration::from_millis(50),
+        Duration::from_millis(100),
+    ];
 
     // EWMA smoothing `ALPHA = 0.3` for the rolling success/latency probabilities — inlined as the
     // `0.3`/`0.7` literals in the upsert SQL (a constant, not a flag, per the lazy principle).
@@ -70,8 +79,7 @@ mod sqlite {
             // by busy_timeout); the timeout then makes a contended writer wait its turn rather than
             // error. Without this a dropped write silently loses a re-check outcome (the scheduler
             // discards upsert errors).
-            conn.busy_timeout(std::time::Duration::from_secs(5))
-                .map_err(db)?;
+            conn.busy_timeout(SQLITE_BUSY_TIMEOUT).map_err(db)?;
             conn.pragma_update(None, "journal_mode", "WAL")
                 .map_err(db)?;
             migrate(&conn)?;
@@ -89,8 +97,9 @@ mod sqlite {
             let errors_total: u32 = proxy.errors().values().sum();
             let uptime = i64::from(proxy.is_working());
             let conn = self.conn.lock().unwrap();
-            conn.execute(
-                "INSERT INTO proxies
+            retry_sqlite_contention(|| {
+                conn.execute(
+                    "INSERT INTO proxies
                      (host, port, types, requests, errors, ewma_success, avg_latency,
                       first_seen, last_seen, uptime_checks)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8, ?9)
@@ -108,18 +117,19 @@ mod sqlite {
                                          ELSE proxies.avg_latency END,
                      last_seen    = excluded.last_seen,
                      uptime_checks = proxies.uptime_checks + excluded.uptime_checks",
-                params![
-                    proxy.host.to_string(),
-                    proxy.port,
-                    types_json,
-                    proxy.requests(),
-                    errors_total,
-                    sample,
-                    proxy.avg_resp_time(),
-                    now,
-                    uptime,
-                ],
-            )
+                    params![
+                        proxy.host.to_string(),
+                        proxy.port,
+                        types_json,
+                        proxy.requests(),
+                        errors_total,
+                        sample,
+                        proxy.avg_resp_time(),
+                        now,
+                        uptime,
+                    ],
+                )
+            })
             .map_err(db)?;
             Ok(())
         }
@@ -198,6 +208,35 @@ mod sqlite {
         Error::Persist(e.to_string())
     }
 
+    fn is_retryable_sqlite_contention(error: &rusqlite::Error) -> bool {
+        matches!(
+            error,
+            rusqlite::Error::SqliteFailure(inner, _)
+                if matches!(
+                    inner.code,
+                    rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked
+                )
+        )
+    }
+
+    fn retry_sqlite_contention<T>(
+        mut operation: impl FnMut() -> rusqlite::Result<T>,
+    ) -> rusqlite::Result<T> {
+        let mut retry_delays = SQLITE_RETRY_DELAYS.iter();
+        loop {
+            match operation() {
+                Ok(value) => return Ok(value),
+                Err(error) if is_retryable_sqlite_contention(&error) => {
+                    let Some(delay) = retry_delays.next() else {
+                        return Err(error);
+                    };
+                    std::thread::sleep(*delay);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
     fn unix_now() -> i64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -235,6 +274,76 @@ mod sqlite {
             map.insert(proto, level);
         }
         map
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::cell::Cell;
+
+        fn sqlite_failure(code: i32) -> rusqlite::Error {
+            rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(code), None)
+        }
+
+        #[test]
+        fn database_busy_is_retryable() {
+            let error = sqlite_failure(rusqlite::ffi::SQLITE_BUSY);
+            assert!(is_retryable_sqlite_contention(&error));
+        }
+
+        #[test]
+        fn database_locked_is_retryable() {
+            let error = sqlite_failure(rusqlite::ffi::SQLITE_LOCKED);
+            assert!(is_retryable_sqlite_contention(&error));
+        }
+
+        #[test]
+        fn non_contention_sqlite_error_is_not_retryable() {
+            let error = sqlite_failure(rusqlite::ffi::SQLITE_CONSTRAINT);
+            assert!(!is_retryable_sqlite_contention(&error));
+        }
+
+        #[test]
+        fn transient_contention_is_retried_until_success() {
+            let attempts = Cell::new(0);
+            let result = retry_sqlite_contention(|| {
+                attempts.set(attempts.get() + 1);
+                if attempts.get() < 3 {
+                    Err(sqlite_failure(rusqlite::ffi::SQLITE_BUSY))
+                } else {
+                    Ok("written")
+                }
+            });
+
+            assert_eq!(result.unwrap(), "written");
+            assert_eq!(attempts.get(), 3);
+        }
+
+        #[test]
+        fn contention_retry_is_bounded_and_returns_final_error() {
+            let attempts = Cell::new(0);
+            let error = retry_sqlite_contention(|| {
+                attempts.set(attempts.get() + 1);
+                Err::<(), _>(sqlite_failure(rusqlite::ffi::SQLITE_LOCKED))
+            })
+            .unwrap_err();
+
+            assert_eq!(attempts.get(), 5);
+            assert!(is_retryable_sqlite_contention(&error));
+        }
+
+        #[test]
+        fn non_contention_error_is_attempted_once() {
+            let attempts = Cell::new(0);
+            let error = retry_sqlite_contention(|| {
+                attempts.set(attempts.get() + 1);
+                Err::<(), _>(sqlite_failure(rusqlite::ffi::SQLITE_CONSTRAINT))
+            })
+            .unwrap_err();
+
+            assert_eq!(attempts.get(), 1);
+            assert!(!is_retryable_sqlite_contention(&error));
+        }
     }
 }
 
