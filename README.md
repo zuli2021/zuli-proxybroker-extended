@@ -29,6 +29,16 @@ Bundled DB-IP data has separate licensing described in
 [LICENSE-DATA](LICENSE-DATA). The source distribution remains under the
 Apache License 2.0.
 
+## Stability
+
+v1.0.0 is the first stable Zuli release. The documented Rust library API is
+governed by Semantic Versioning, and the documented CLI interface is treated as
+a compatibility contract. Incompatible changes to either require a future
+major release.
+
+This stability declaration does not guarantee the availability,
+trustworthiness, or safety of third-party public proxies.
+
 ## Installation
 
 ### Release installer
@@ -40,7 +50,7 @@ curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/
 ```
 
 The installer resolves the latest GitHub Release by default. Set
-`PROXYBROKER_VERSION=v0.4.2` to select this release explicitly.
+`PROXYBROKER_VERSION=v1.0.0` to select this release explicitly.
 
 Installation is fail-closed: SHA-256 verification is mandatory, and `LICENSE`,
 `NOTICE`, and `LICENSE-DATA` are retained with the installed documentation.
@@ -74,7 +84,7 @@ release tag as a direct Git dependency:
 
 ```toml
 [dependencies]
-proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v0.4.2" }
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v1.0.0" }
 ```
 
 Rust imports remain:
@@ -91,7 +101,7 @@ unpinned branch.
 Run the stable versioned container image with:
 
 ```sh
-docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:0.4.2 serve --host 0.0.0.0:8888
+docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:1.0.0 serve --host 0.0.0.0:8888
 ```
 
 The application defaults to binding on `127.0.0.1:8888`. A containerized server
@@ -103,7 +113,7 @@ Restricted `--version`, `serve --help`, and `find --help` checks passed with no
 network, a read-only root filesystem, all capabilities dropped, and
 no-new-privileges.
 
-The release workflow publishes the `0.4.2` and `latest` image tags only after the
+The release workflow publishes the `1.0.0` and `latest` image tags only after the
 GitHub Release and all binary assets succeed. The container image currently
 targets Linux amd64; Linux aarch64 users should use the corresponding release
 binary. Broad Windows, WSL, and Docker Desktop compatibility is not claimed,
@@ -143,7 +153,18 @@ while let Some(proxy) = stream.next().await {
 
 ## Why this exists
 
-There was no Rust equivalent with a library API. Checked before starting (2026-07-15):
+In the public GitHub and crates.io landscape review completed on 2026-07-29, no
+third Rust project was found with the same combined scope: a reusable library
+API, CLI, public-proxy discovery, validation and classification, and rotating
+proxy-server operation.
+
+This project remains an independently maintained derivative of
+[TurtIeSocks/proxybroker-rs](https://github.com/TurtIeSocks/proxybroker-rs),
+whose upstream lineage includes
+[bluet/proxybroker2](https://github.com/bluet/proxybroker2) and
+[constverum/ProxyBroker](https://github.com/constverum/ProxyBroker). The
+following crates.io comparison is a dated landscape snapshot, not an absolute
+claim about private or unindexed software:
 
 | crate | latest | published | ships a lib? | scope |
 |---|---|---|---|---|
