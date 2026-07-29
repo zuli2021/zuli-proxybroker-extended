@@ -1,5 +1,7 @@
 # Zuli ProxyBroker Extended
 
+[![Release](https://img.shields.io/github/v/release/zuli2021/zuli-proxybroker-extended?display_name=tag&sort=semver)](https://github.com/zuli2021/zuli-proxybroker-extended/releases/latest)
+
 Zuli ProxyBroker Extended is a Rust library and CLI for finding, validating, and
 serving rotating public HTTP(S), SOCKS4, and SOCKS5 proxies.
 
@@ -31,25 +33,24 @@ Apache License 2.0.
 
 ### Release installer
 
-Only after the first tagged Zuli release is published, use the release
-installer:
+For tagged releases, install the latest supported Linux or macOS binary with:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/main/install.sh | sh
 ```
 
-The installer is intended for supported Linux and macOS targets. Windows is not
-supported through `install.sh`. Installer hardening has been implemented and
-locally reviewed: SHA-256 verification is mandatory and fail-closed, and
-`LICENSE`, `NOTICE`, and `LICENSE-DATA` are retained. Live validation against
-real public GitHub Release assets remains deferred because no Zuli release
-exists yet, so this remains a future release instruction.
+The installer resolves the latest GitHub Release by default. Set
+`PROXYBROKER_VERSION=v0.4.0` to select this release explicitly.
+
+Installation is fail-closed: SHA-256 verification is mandatory, and `LICENSE`,
+`NOTICE`, and `LICENSE-DATA` are retained with the installed documentation.
+Windows users should download the matching release asset directly or build from
+source.
 
 ### Build from source
 
-After the public repository is published, build from source with Rust 1.85 or
-newer, Cargo, and Git. Network access is required by proxy discovery and
-checking operations.
+Build from source with Rust 1.85 or newer, Cargo, and Git. Network access is
+required by proxy discovery and checking operations.
 
 ```sh
 git clone https://github.com/zuli2021/zuli-proxybroker-extended.git
@@ -68,12 +69,12 @@ The installed executable name remains `proxybroker`.
 
 ### Rust library dependency
 
-No Zuli package is currently published to crates.io. After the public repository
-is available, applications can use a direct Git dependency:
+The package is not published to crates.io. Applications can use the stable
+release tag as a direct Git dependency:
 
 ```toml
 [dependencies]
-proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git" }
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v0.4.0" }
 ```
 
 Rust imports remain:
@@ -82,16 +83,15 @@ Rust imports remain:
 use proxybroker::{Broker, FindQuery, Proto, TypeSpec};
 ```
 
-After the first release, pin this Git dependency to a tag or commit rather than
-relying indefinitely on an unpinned branch.
+For unreleased development work, use an exact commit rather than relying on an
+unpinned branch.
 
 ### Docker
 
-Only after the first stable tagged Zuli release successfully publishes the image,
-run:
+Run the stable versioned container image with:
 
 ```sh
-docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:latest serve --host 0.0.0.0:8888
+docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:0.4.0 serve --host 0.0.0.0:8888
 ```
 
 The application defaults to binding on `127.0.0.1:8888`. A containerized server
@@ -101,11 +101,13 @@ on the current Docker Desktop-backed Linux amd64 environment: the committed
 scratch image built with an 11.41 MB context and ran as UID/GID `65532:65532`.
 Restricted `--version`, `serve --help`, and `find --help` checks passed with no
 network, a read-only root filesystem, all capabilities dropped, and
-no-new-privileges. Current GitHub Actions validation completed successfully,
-including the Docker scratch-image smoke test. GHCR publication and
-multi-architecture validation remain deferred. Broad Windows, WSL, and Docker
-Desktop compatibility is not claimed, and live proxy-server traffic was not
-validated.
+no-new-privileges.
+
+The release workflow publishes the `0.4.0` and `latest` image tags only after the
+GitHub Release and all binary assets succeed. The container image currently
+targets Linux amd64; Linux aarch64 users should use the corresponding release
+binary. Broad Windows, WSL, and Docker Desktop compatibility is not claimed,
+and live proxy-server traffic has not been validated.
 
 ## Usage
 
