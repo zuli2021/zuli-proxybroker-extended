@@ -71,7 +71,7 @@ Darwin)
 esac
 
 asset="$BIN-$VERSION-$target.tar.gz"
-checksum_asset="$asset.sha256"
+checksum_asset="$BIN-$VERSION-$target.sha256"
 base="https://github.com/$REPO/releases/download/$VERSION"
 tmp=$(mktemp -d) || err "could not create a temporary directory"
 [ -n "$tmp" ] || err "could not create a temporary directory"

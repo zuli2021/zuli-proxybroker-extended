@@ -161,7 +161,10 @@ jobs:
             find --help
 
       - name: Shellcheck the installer
-        run: shellcheck install.sh
+        run: shellcheck install.sh tests/test_install.sh
+
+      - name: Test installer release-asset contract
+        run: bash tests/test_install.sh
 
   # store-redis (Wave 9): the RedisStore round-trip can't be faithfully mocked (Lua atomicity), so
   # its integration tests run against a real Redis service container. The main test matrix stays
