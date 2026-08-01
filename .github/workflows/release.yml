@@ -1,13 +1,12 @@
 name: Release
 
 # On a pushed version tag: create a GitHub Release, attach prebuilt CLI binaries,
-# and publish the container image to GHCR.
+# and publish the container image to GHCR. Publication is tag-push-only: an existing
+# Release blocks execution, and manually rebuilding an immutable published Release is
+# not supported. Recovery from a partial publication requires a separate governed review;
+# this workflow never silently replaces assets.
 #
 #   git tag v0.1.2 && git push origin v0.1.2
-#
-# Or run manually (Actions → Release → Run workflow) with an existing tag. The same
-# validated tag drives release assets and image publication; only canonical stable tags
-# may move the GHCR latest tag.
 #
 # The tag MUST be `v<version>` and match the version in Cargo.toml, or nothing ships.
 # crates.io publication is intentionally disabled until separately reviewed and approved.
@@ -15,16 +14,10 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing version tag to build and attach binaries for (e.g. v0.4.0)."
-        required: true
-        type: string
 
 # Never run two releases for the same tag at once.
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -45,12 +38,14 @@ jobs:
       - name: Resolve and validate the release tag
         id: resolve
         env:
-          # A manual-run input, else the pushed tag. Read via env (never interpolated into the
-          # shell) and validated below before it is ever used as a git ref.
-          INPUT_TAG: ${{ inputs.tag }}
           REF_TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
-          TAG="${INPUT_TAG:-$REF_TAG}"
+          if [ "$REF_TYPE" != "tag" ]; then
+            echo "::error::Release must be triggered by a pushed tag"
+            exit 1
+          fi
+          TAG="$REF_TAG"
           if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
             echo "::error::invalid tag '$TAG' (expected vMAJOR.MINOR.PATCH)"
             exit 1
@@ -66,11 +61,41 @@ jobs:
           printf 'is_stable=%s\n' "$IS_STABLE" >> "$GITHUB_OUTPUT"
           printf 'is_prerelease=%s\n' "$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      # Published Releases are immutable. Exact HTTP 404 is the only accepted proof of absence;
+      # an existing Release or any other API failure blocks all tests and publication jobs.
+      - name: Verify the GitHub Release does not already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          response_file="$RUNNER_TEMP/release-lookup.json"
+          error_file="$RUNNER_TEMP/release-lookup.err"
+
+          set +e
+          gh api "repos/$GH_REPO/releases/tags/$TAG" \
+            > "$response_file" \
+            2> "$error_file"
+          lookup_status=$?
+          set -e
+
+          if [ "$lookup_status" -eq 0 ]; then
+            echo "::error::Release $TAG already exists; immutable Releases cannot be rebuilt"
+            exit 1
+          fi
+
+          if ! grep -Fq 'HTTP 404' "$error_file"; then
+            echo "::error::Release absence was not proven by an exact HTTP 404"
+            cat "$error_file" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.resolve.outputs.tag }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: Verify the tag matches the crate version
         id: package_version
@@ -94,10 +119,8 @@ jobs:
       - name: Package validation
         run: cargo package --locked
 
-  # Create the GitHub Release once, up front. A pushed git tag is NOT a Release, and none of
-  # the matrix jobs reliably creates one (especially on a manual run, where the git ref is a
-  # branch, not the tag) — so without this the binary jobs loop "release not found" and fail.
-  # Doing it in a single job also avoids five matrix jobs racing to create the same release.
+  # Create the GitHub Release exactly once, after verify proved it absent. A pushed git tag is
+  # not itself a Release, so this single creation-only job also prevents matrix creation races.
   create-release:
     needs: verify
     runs-on: ubuntu-latest
@@ -111,13 +134,11 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
           IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "release $TAG already exists"
-          elif [ "$IS_PRERELEASE" = "true" ]; then
-            gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag --prerelease
-          else
-            gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
+          release_args=(--title "$TAG" --generate-notes --verify-tag)
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            release_args+=(--prerelease)
           fi
+          gh release create "$TAG" "${release_args[@]}"
 
   binaries:
     needs: [verify, create-release]
@@ -156,18 +177,18 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         with:
           targets: ${{ matrix.target }}
 
       # ring assembles its optimized routines with NASM on Windows/MSVC.
       - name: Install NASM (Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/setup-nasm@v1
+        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
 
       # The musl targets link against musl libc; musl-tools provides the musl-gcc ring's C code
       # needs. (Only reachable now that the graph is aws-lc-free — see the matrix comment.)
@@ -175,7 +196,7 @@ jobs:
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           key: ${{ matrix.target }}
 
@@ -183,10 +204,9 @@ jobs:
       # Windows) WITH the licences — the binary embeds the DB-IP geo database (CC BY 4.0), so
       # its attribution (LICENSE-DATA) and NOTICE must travel with every distributed copy —
       # writes a SHA-256 checksum, and uploads everything to the tag's GitHub Release. `ref`
-      # pins the target release/tag so this works identically for a pushed tag and a manual
-      # run (whose git ref is a branch, not the tag).
+      # pins the target release/tag selected exclusively by the pushed tag event.
       - name: Build and upload CLI binary
-        uses: taiki-e/upload-rust-binary-action@v1
+        uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1
         with:
           bin: proxybroker
           target: ${{ matrix.target }}
@@ -207,12 +227,12 @@ jobs:
       contents: read # checkout
       packages: write # push to ghcr.io
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -227,7 +247,7 @@ jobs:
       # this repo — required or the first push to a new package 403s even with packages: write.
       - name: Compute image tags and labels
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
@@ -240,7 +260,7 @@ jobs:
       # QEMU multi-arch: the Dockerfile compiles the crate from source, so emulated aarch64 builds
       # would be prohibitively slow — the aarch64 story is the musl binary shipped by `binaries`.
       - name: Build and push to GHCR
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           push: true

@@ -8,6 +8,7 @@ repository = "https://github.com/zuli2021/zuli-proxybroker-extended"
 homepage = "https://github.com/zuli2021/zuli-proxybroker-extended"
 license = "Apache-2.0"
 readme = "README.md"
+publish = false
 keywords = ["proxy", "socks", "http", "scraper", "checker"]
 categories = ["network-programming", "command-line-utilities"]
 # The bundled geo database is data, not code, and is licensed separately (CC BY 4.0).
