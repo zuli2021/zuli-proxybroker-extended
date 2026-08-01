@@ -434,4 +434,150 @@ mod tests {
         let without = String::from_utf8(connect_request("h", 443, None)).unwrap();
         assert!(!without.contains("Proxy-Authorization"), "{without}");
     }
+
+    #[tokio::test]
+    async fn socks4_negotiation_emits_exact_request_and_preserves_tunnel() {
+        const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+        const REQUEST: [u8; 9] = [0x04, 0x01, 0x1f, 0x90, 0xc6, 0x33, 0x64, 0x07, 0x00];
+        const RESPONSE: [u8; 8] = [0x00, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind fake SOCKS4 peer");
+        let proxy_addr = listener
+            .local_addr()
+            .expect("read fake SOCKS4 peer address");
+
+        let peer = async move {
+            let (mut socket, _) = listener.accept().await.expect("accept SOCKS4 client");
+
+            let mut request = [0u8; REQUEST.len()];
+            socket
+                .read_exact(&mut request)
+                .await
+                .expect("read SOCKS4 request");
+            assert_eq!(request, REQUEST);
+
+            socket
+                .write_all(&RESPONSE)
+                .await
+                .expect("write SOCKS4 success response");
+
+            let mut payload = [0u8; 4];
+            socket
+                .read_exact(&mut payload)
+                .await
+                .expect("read tunnel payload");
+            assert_eq!(&payload, b"PING");
+
+            socket
+                .write_all(b"PONG")
+                .await
+                .expect("write tunnel payload");
+        };
+
+        let client = async move {
+            let tcp = TcpStream::connect(proxy_addr)
+                .await
+                .expect("connect to fake SOCKS4 peer");
+
+            let target = Target {
+                host: "unused.invalid".to_owned(),
+                ip: Some(IpAddr::V4(std::net::Ipv4Addr::new(198, 51, 100, 7))),
+                port: 8080,
+            };
+
+            let credentials = Credentials {
+                username: "ignored-user".to_owned(),
+                password: "ignored-pass".to_owned(),
+            };
+
+            let mut stream = match negotiate(
+                Proto::Socks4,
+                tcp,
+                &target,
+                TEST_TIMEOUT,
+                Some(&credentials),
+            )
+            .await
+            .expect("SOCKS4 negotiation should succeed")
+            {
+                Stream::Plain(stream) => stream,
+                Stream::Tls(_) => {
+                    panic!("SOCKS4 negotiation returned a TLS stream")
+                }
+            };
+
+            stream
+                .write_all(b"PING")
+                .await
+                .expect("write through SOCKS4 tunnel");
+
+            let mut payload = [0u8; 4];
+            stream
+                .read_exact(&mut payload)
+                .await
+                .expect("read through SOCKS4 tunnel");
+            assert_eq!(&payload, b"PONG");
+        };
+
+        tokio::time::timeout(TEST_TIMEOUT, async {
+            tokio::join!(peer, client);
+        })
+        .await
+        .expect("SOCKS4 positive test timed out");
+    }
+
+    #[tokio::test]
+    async fn socks4_rejection_maps_to_bad_response() {
+        const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+        const REQUEST: [u8; 9] = [0x04, 0x01, 0x1f, 0x90, 0xc6, 0x33, 0x64, 0x07, 0x00];
+        const RESPONSE: [u8; 8] = [0x00, 0x5b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind fake SOCKS4 peer");
+        let proxy_addr = listener
+            .local_addr()
+            .expect("read fake SOCKS4 peer address");
+
+        let peer = async move {
+            let (mut socket, _) = listener.accept().await.expect("accept SOCKS4 client");
+
+            let mut request = [0u8; REQUEST.len()];
+            socket
+                .read_exact(&mut request)
+                .await
+                .expect("read SOCKS4 request");
+            assert_eq!(request, REQUEST);
+
+            socket
+                .write_all(&RESPONSE)
+                .await
+                .expect("write SOCKS4 rejection response");
+        };
+
+        let client = async move {
+            let tcp = TcpStream::connect(proxy_addr)
+                .await
+                .expect("connect to fake SOCKS4 peer");
+
+            let target = Target {
+                host: "unused.invalid".to_owned(),
+                ip: Some(IpAddr::V4(std::net::Ipv4Addr::new(198, 51, 100, 7))),
+                port: 8080,
+            };
+
+            negotiate(Proto::Socks4, tcp, &target, TEST_TIMEOUT, None).await
+        };
+
+        let ((), result) = tokio::time::timeout(TEST_TIMEOUT, async { tokio::join!(peer, client) })
+            .await
+            .expect("SOCKS4 rejection test timed out");
+
+        assert_eq!(
+            result.expect_err("SOCKS4 rejection should fail"),
+            ProxyError::BadResponse
+        );
+    }
 }
