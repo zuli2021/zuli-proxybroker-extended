@@ -639,7 +639,7 @@ return 1
 
     impl RedisStore {
         /// Open a connection to `url` (`redis://host:port/db`), checking/setting the schema
-        /// marker key ([`SCHEMA_KEY`]) — Redis has no `PRAGMA user_version`, so a plain string key
+        /// marker key (`SCHEMA_KEY`) — Redis has no `PRAGMA user_version`, so a plain string key
         /// stands in for SQLite's migration guard. A present-but-different value is a hard error:
         /// there is only one schema version so far, but this keeps a future bump from silently
         /// misreading old-shape hashes.

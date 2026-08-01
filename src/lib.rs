@@ -7,7 +7,7 @@
 //!
 //! The three core capabilities are complete: [`Broker::grab`](broker::Broker::grab) scrapes
 //! providers, [`Broker::find`](broker::Broker::find) checks them and classifies anonymity,
-//! and [`server::serve`] runs a local rotating proxy server (behind the `server` feature).
+//! and `server::serve` runs a local rotating proxy server (behind the `server` feature).
 //!
 //! ```no_run
 //! # async fn f() -> Result<(), Box<dyn std::error::Error>> {

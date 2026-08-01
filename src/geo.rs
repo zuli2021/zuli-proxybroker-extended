@@ -19,7 +19,7 @@ pub struct GeoDb {
 impl GeoDb {
     /// The database embedded at build time (requires the `geo-bundled` feature).
     ///
-    /// Attribution (CC BY 4.0): *IP Geolocation by DB-IP (https://db-ip.com)*.
+    /// Attribution (CC BY 4.0): *IP Geolocation by DB-IP (<https://db-ip.com>)*.
     #[cfg(feature = "geo-bundled")]
     pub fn bundled() -> Result<Self, maxminddb::MaxMindDbError> {
         const DB: &[u8] = include_bytes!("../data/dbip-country-lite.mmdb");

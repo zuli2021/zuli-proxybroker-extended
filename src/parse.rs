@@ -89,7 +89,7 @@ pub fn find_addrs_global(text: &str) -> Vec<(String, String)> {
 /// Parse `host:port` lines from user-supplied text into unchecked [`Proxy`]s, for the `check`
 /// verb (stdin / a file / a pasted list). Uses the same per-line scanner as the raw-data
 /// loader ([`find_addrs_line`]) and the same lenient IP parsing as the provider path
-/// ([`parse_ip_lenient`], which normalizes leading-zero IPv4). Non-IP lines and out-of-range
+/// (`parse_ip_lenient`, which normalizes leading-zero IPv4). Non-IP lines and out-of-range
 /// ports are skipped. `expected_types` is left empty — the checker reads that as "unknown, so
 /// check all requested protocols" (`checker.rs`).
 pub fn parse_proxy_lines(text: &str) -> Vec<Proxy> {

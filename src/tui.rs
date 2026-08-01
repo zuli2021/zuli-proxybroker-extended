@@ -47,7 +47,7 @@ pub struct DashboardState {
     pub snapshot: PoolSnapshot,
     pub sort: SortKey,
     /// Per-proxy response-time history, keyed by `(host, port)` so it survives a proxy dropping
-    /// out and back into the pool. Capped at [`RING_CAP`] — oldest sample drops first.
+    /// out and back into the pool. Capped at `RING_CAP` — oldest sample drops first.
     pub history: HashMap<(IpAddr, u16), VecDeque<f64>>,
     pub selected: usize,
 }
@@ -286,7 +286,7 @@ fn install_panic_hook() {
 }
 
 /// Run the live dashboard against `pool`: redraw every `refresh` and on each keypress, until the
-/// user quits (`q`/Esc) or the event stream ends. The [`TermGuard`] restores the terminal on exit.
+/// user quits (`q`/Esc) or the event stream ends. The `TermGuard` restores the terminal on exit.
 pub async fn run_top(
     pool: std::sync::Arc<crate::server::Pool>,
     refresh: std::time::Duration,

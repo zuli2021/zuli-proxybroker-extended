@@ -12,8 +12,8 @@
 //! `find`'s concurrency is the delicate part (`decisions.md` §1). proxybroker2's `_on_check`
 //! is a queue impersonating **two** primitives, which must stay separate here:
 //!
-//! - a [`Semaphore`](tokio::sync::Semaphore) bounds in-flight checks (the concurrency cap);
-//! - a [`TaskTracker`](tokio_util::task::TaskTracker) is the wait-group we drain before
+//! - a [`Semaphore`] bounds in-flight checks (the concurrency cap);
+//! - a [`TaskTracker`] is the wait-group we drain before
 //!   ending the stream, so no check is silently dropped.
 //!
 //! A [`CancellationToken`] fired when the consumer drops the stream aborts in-flight checks —

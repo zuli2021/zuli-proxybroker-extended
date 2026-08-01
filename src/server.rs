@@ -130,7 +130,7 @@ struct Pooled {
     blocked_until: Option<tokio::time::Instant>,
 }
 
-/// A pool of checked proxies, refilled from a [`ProxyStream`] by a background importer.
+/// A pool of checked proxies, refilled from a [`ProxyStream`](crate::ProxyStream) by a background importer.
 pub struct Pool {
     state: Mutex<Vec<Pooled>>,
     /// [`Strategy::Sticky`] pins: client → the **address** (not index — indices churn under
@@ -174,7 +174,7 @@ impl Pool {
 
     /// Create a pool and spawn the importer that drains `stream` into it. The importer is the
     /// single owner of the receiver, so waiters never serialize behind a mutex over it. Generic
-    /// over the source stream so a [`ProxyStream`] (from `find`), or any other `Stream<Item =
+    /// over the source stream so a [`ProxyStream`](crate::ProxyStream) (from `find`), or any other `Stream<Item =
     /// Proxy>` (a BYO feed, or a test's channel), can fill the pool.
     pub fn spawn<S>(stream: S, config: PoolConfig) -> Arc<Pool>
     where
