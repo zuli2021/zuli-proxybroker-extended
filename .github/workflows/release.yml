@@ -1,15 +1,12 @@
 name: Release
 
-# On a pushed version tag: create a GitHub Release, attach prebuilt CLI binaries,
-# and publish the container image to GHCR. Publication is tag-push-only: an existing
-# Release blocks execution, and manually rebuilding an immutable published Release is
-# not supported. Recovery from a partial publication requires a separate governed review;
-# this workflow never silently replaces assets.
-#
-#   git tag v0.1.2 && git push origin v0.1.2
-#
-# The tag MUST be `v<version>` and match the version in Cargo.toml, or nothing ships.
-# crates.io publication is intentionally disabled until separately reviewed and approved.
+# A pushed version tag is verified before an unpublished draft Release is created.
+# Binary archives and checksums are generated without network publication, uploaded
+# only while the Release is a verified draft, and checked as an exact fourteen-asset
+# set. GHCR must succeed before the draft is verified and published. Publication is
+# the terminal Release mutation. Existing drafts or published Releases block normal
+# execution; partial failures preserve the draft for a separately governed recovery.
+# This ordering is compatible with future Immutable Releases, which are not yet enabled.
 on:
   push:
     tags:
@@ -24,14 +21,14 @@ permissions:
   contents: read
 
 jobs:
-  # Gate everything on a single check: the tag is well-formed, matches the crate version, and
-  # the test suite and distributable package validation pass. All release jobs depend on this,
-  # so nothing ships for a mistagged or broken commit. The resolved tag is exported for downstream jobs.
+  # Prove the pushed tag, commit, crate version, package, and complete Release absence
+  # before any external mutation. API ambiguity is always a hard failure.
   verify:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       package_version: ${{ steps.package_version.outputs.version }}
+      tag_commit: ${{ steps.tag_commit.outputs.commit }}
       is_stable: ${{ steps.resolve.outputs.is_stable }}
       is_prerelease: ${{ steps.resolve.outputs.is_prerelease }}
     steps:
@@ -41,6 +38,7 @@ jobs:
           REF_TAG: ${{ github.ref_name }}
           REF_TYPE: ${{ github.ref_type }}
         run: |
+          set -euo pipefail
           if [ "$REF_TYPE" != "tag" ]; then
             echo "::error::Release must be triggered by a pushed tag"
             exit 1
@@ -61,39 +59,96 @@ jobs:
           printf 'is_stable=%s\n' "$IS_STABLE" >> "$GITHUB_OUTPUT"
           printf 'is_prerelease=%s\n' "$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
 
-      # Published Releases are immutable. Exact HTTP 404 is the only accepted proof of absence;
-      # an existing Release or any other API failure blocks all tests and publication jobs.
-      - name: Verify the GitHub Release does not already exist
+      - name: Verify no published or draft Release exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.resolve.outputs.tag }}
         run: |
           set -euo pipefail
-          response_file="$RUNNER_TEMP/release-lookup.json"
-          error_file="$RUNNER_TEMP/release-lookup.err"
+          published_response="$RUNNER_TEMP/published-release.json"
+          published_error="$RUNNER_TEMP/published-release.err"
 
           set +e
           gh api "repos/$GH_REPO/releases/tags/$TAG" \
-            > "$response_file" \
-            2> "$error_file"
-          lookup_status=$?
+            > "$published_response" \
+            2> "$published_error"
+          published_status=$?
           set -e
 
-          if [ "$lookup_status" -eq 0 ]; then
-            echo "::error::Release $TAG already exists; immutable Releases cannot be rebuilt"
+          if [ "$published_status" -eq 0 ]; then
+            echo "::error::Published Release $TAG already exists"
+            exit 1
+          fi
+          if ! grep -Fq 'HTTP 404' "$published_error"; then
+            echo "::error::Published Release absence was not proven by exact HTTP 404"
+            cat "$published_error" >&2
             exit 1
           fi
 
-          if ! grep -Fq 'HTTP 404' "$error_file"; then
-            echo "::error::Release absence was not proven by an exact HTTP 404"
-            cat "$error_file" >&2
-            exit 1
-          fi
+          owner="${GH_REPO%%/*}"
+          repository="${GH_REPO#*/}"
+          query='
+            query($owner: String!, $repository: String!, $tag: String!) {
+              repository(owner: $owner, name: $repository) {
+                release(tagName: $tag) {
+                  databaseId
+                  isDraft
+                  isPrerelease
+                  tagName
+                }
+              }
+            }
+          '
+          gh api graphql \
+            -f query="$query" \
+            -F owner="$owner" \
+            -F repository="$repository" \
+            -F tag="$TAG" \
+            > "$RUNNER_TEMP/tag-release-graphql.json"
+          jq -e '((.errors // []) | length) == 0' \
+            "$RUNNER_TEMP/tag-release-graphql.json"
+          jq -e '.data.repository != null' \
+            "$RUNNER_TEMP/tag-release-graphql.json"
+          jq -e '.data.repository.release == null' \
+            "$RUNNER_TEMP/tag-release-graphql.json" || {
+              echo "::error::A draft or published Release already exists for $TAG"
+              exit 1
+            }
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.resolve.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Verify and record the peeled tag commit
+        id: tag_commit
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+          EVENT_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git show-ref --verify --hash "refs/tags/$TAG" | wc -l)" = '1'
+          TAG_COMMIT="$(git rev-parse "refs/tags/$TAG^{commit}")"
+          test "$(printf '%s' "$TAG_COMMIT" | grep -Ec '^[0-9a-f]{40}$')" = '1'
+          test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
+          test "$EVENT_COMMIT" = "$TAG_COMMIT"
+
+          remote_refs="$(git ls-remote origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+          remote_commit="$(
+            printf '%s\n' "$remote_refs" |
+              awk '$2 ~ /\^\{\}$/ {print $1}'
+          )"
+          if [ -z "$remote_commit" ]; then
+            remote_commit="$(
+              printf '%s\n' "$remote_refs" |
+                awk '$2 !~ /\^\{\}$/ {print $1}'
+            )"
+          fi
+          test "$(printf '%s\n' "$remote_commit" | sed '/^$/d' | sort -u | wc -l)" = '1'
+          test "$remote_commit" = "$TAG_COMMIT"
+          printf 'commit=%s\n' "$TAG_COMMIT" >> "$GITHUB_OUTPUT"
+
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
@@ -102,6 +157,7 @@ jobs:
         env:
           TAG: ${{ steps.resolve.outputs.tag }}
         run: |
+          set -euo pipefail
           VERSION="$(cargo metadata --format-version 1 --no-deps --locked | jq -r '.packages[0].version')"
           echo "Cargo.toml version: $VERSION"
           echo "Release tag:        $TAG"
@@ -111,54 +167,79 @@ jobs:
           fi
           printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
 
-      # The full test suite is designed to run offline (local mock servers only), so it is
-      # safe in CI and catches regressions before anything ships.
       - name: Test
         run: cargo test --all-features --locked
 
       - name: Package validation
         run: cargo package --locked
 
-  # Create the GitHub Release exactly once, after verify proved it absent. A pushed git tag is
-  # not itself a Release, so this single creation-only job also prevents matrix creation races.
-  create-release:
+  # Create one unpublished draft and expose its numeric identity to every later job.
+  create-draft-release:
     needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
     steps:
-      - name: Create the GitHub Release if it does not exist
+      - name: Create and verify the draft Release
+        id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.verify.outputs.tag }}
+          TAG_COMMIT: ${{ needs.verify.outputs.tag_commit }}
           IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
         run: |
-          release_args=(--title "$TAG" --generate-notes --verify-tag)
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            release_args+=(--prerelease)
-          fi
-          gh release create "$TAG" "${release_args[@]}"
+          set -euo pipefail
+          payload="$RUNNER_TEMP/create-draft-release.json"
+          response="$RUNNER_TEMP/create-draft-release-response.json"
+          jq -n \
+            --arg tag "$TAG" \
+            --arg target_commitish "$TAG_COMMIT" \
+            --argjson prerelease "$IS_PRERELEASE" \
+            '{
+              tag_name: $tag,
+              target_commitish: $target_commitish,
+              name: $tag,
+              draft: true,
+              prerelease: $prerelease,
+              generate_release_notes: true,
+              make_latest: "false"
+            }' > "$payload"
 
+          gh api \
+            --method POST \
+            "repos/$GH_REPO/releases" \
+            --input "$payload" \
+            > "$response"
+
+          RELEASE_ID="$(jq -er '.id | select(type == "number")' "$response")"
+          test "$(printf '%s' "$RELEASE_ID" | grep -Ec '^[0-9]+$')" = '1'
+          gh api "repos/$GH_REPO/releases/$RELEASE_ID" \
+            > "$RUNNER_TEMP/created-draft-release.json"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --argjson prerelease "$IS_PRERELEASE" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .name == $tag and
+              .draft == true and
+              .prerelease == $prerelease and
+              .published_at == null and
+              (.assets | length) == 0
+            ' "$RUNNER_TEMP/created-draft-release.json"
+          printf 'release_id=%s\n' "$RELEASE_ID" >> "$GITHUB_OUTPUT"
+
+  # The pinned action builds and packages locally in intentional dry-run mode.
+  # A separate guarded command uploads the resulting pair once to the verified draft.
   binaries:
-    needs: [verify, create-release]
+    needs: [verify, create-draft-release]
     permissions:
-      contents: write # upload assets to the release
+      contents: write
     strategy:
       fail-fast: false
-      # Host per target. TLS is ring-only rustls (no aws-lc-rs — see Cargo.toml), so the graph
-      # cross-compiles to musl with just `musl-tools`. The static musl targets are the portable,
-      # libc-free Linux binaries the installer + scratch Docker image ship; the gnu targets remain
-      # for maximum host compatibility.
-      #
-      # Two targets are cross-compiled rather than host-native, because their "native" runner does
-      # not build cleanly on GitHub's fleet:
-      #   - aarch64-unknown-linux-musl builds on x86_64 `ubuntu-latest`: upload-rust-binary-action
-      #     drives it through `cross`, which needs an x86_64 host (on `ubuntu-24.04-arm` it tries to
-      #     install the x86_64 toolchain on an arm64 host and fails). x86→arm64-musl via cross is the
-      #     standard path.
-      #   - x86_64-apple-darwin builds on Apple-Silicon `macos-14` (rustc cross-compiles x86 with the
-      #     target added): the Intel `macos-13` runner is being retired and queues indefinitely.
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -185,13 +266,10 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # ring assembles its optimized routines with NASM on Windows/MSVC.
       - name: Install NASM (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1
 
-      # The musl targets link against musl libc; musl-tools provides the musl-gcc ring's C code
-      # needs. (Only reachable now that the graph is aws-lc-free — see the matrix comment.)
       - name: Install musl tools (musl targets)
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
@@ -200,32 +278,134 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      # Builds the `proxybroker` binary for the target, archives it (tar.gz on unix, zip on
-      # Windows) WITH the licences — the binary embeds the DB-IP geo database (CC BY 4.0), so
-      # its attribution (LICENSE-DATA) and NOTICE must travel with every distributed copy —
-      # writes a SHA-256 checksum, and uploads everything to the tag's GitHub Release. `ref`
-      # pins the target release/tag selected exclusively by the pushed tag event.
-      - name: Build and upload CLI binary
+      - name: Build and package CLI binary
+        id: package
         uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1
         with:
           bin: proxybroker
           target: ${{ matrix.target }}
           ref: refs/tags/${{ needs.verify.outputs.tag }}
-          locked: true # build against the committed Cargo.lock, matching the published crate
+          locked: true
           archive: proxybroker-$tag-$target
           include: LICENSE,LICENSE-DATA,NOTICE,README.md
           checksum: sha256
-          token: ${{ secrets.GITHUB_TOKEN }}
+          dry-run: true
+          dry-run-intended: true
 
-  # Publish the FROM-scratch image to the GitHub Container Registry only after the GitHub Release
-  # and every binary upload complete. Every validated release receives a version tag; only a
-  # canonical stable release receives `latest`. Auth is the built-in GITHUB_TOKEN.
+      - name: Upload the generated pair to the verified draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_ID: ${{ needs.create-draft-release.outputs.release_id }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+          TARGET: ${{ matrix.target }}
+          TAR_ASSET: ${{ steps.package.outputs.tar }}
+          ZIP_ASSET: ${{ steps.package.outputs.zip }}
+          CHECKSUM_ASSET: ${{ steps.package.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          archive=''
+          if [ -n "$TAR_ASSET" ]; then
+            archive="$TAR_ASSET"
+          fi
+          if [ -n "$ZIP_ASSET" ]; then
+            test -z "$archive"
+            archive="$ZIP_ASSET"
+          fi
+          test -n "$archive"
+          test -n "$CHECKSUM_ASSET"
+          test -f "$archive"
+          test -s "$archive"
+          test -f "$CHECKSUM_ASSET"
+          test -s "$CHECKSUM_ASSET"
+
+          base="proxybroker-$TAG-$TARGET"
+          if [ "$TARGET" = "x86_64-pc-windows-msvc" ]; then
+            expected_archive="$base.zip"
+            test -n "$ZIP_ASSET"
+            test -z "$TAR_ASSET"
+          else
+            expected_archive="$base.tar.gz"
+            test -n "$TAR_ASSET"
+            test -z "$ZIP_ASSET"
+          fi
+          expected_checksum="$base.sha256"
+          test "$archive" = "$expected_archive"
+          test "$CHECKSUM_ASSET" = "$expected_checksum"
+
+          release_json="$(
+            gh api "repos/$GH_REPO/releases/$RELEASE_ID"
+          )"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --argjson prerelease "$IS_PRERELEASE" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == true and
+              .prerelease == $prerelease and
+              .published_at == null and
+              (([.assets[].name] | length) ==
+               ([.assets[].name] | unique | length))
+            ' <<< "$release_json"
+          existing_count="$(
+            jq \
+              --arg archive "$archive" \
+              --arg checksum "$CHECKSUM_ASSET" '
+                [
+                  .assets[] |
+                  select(
+                    .name == $archive or
+                    .name == $checksum
+                  )
+                ] |
+                length
+              ' <<< "$release_json"
+          )"
+          test "$existing_count" = '0'
+
+          gh release upload \
+            "$TAG" \
+            "$archive" \
+            "$CHECKSUM_ASSET" \
+            --repo "$GH_REPO"
+
+          release_json="$(
+            gh api "repos/$GH_REPO/releases/$RELEASE_ID"
+          )"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --arg archive "$archive" \
+            --arg checksum "$CHECKSUM_ASSET" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == true and
+              .published_at == null and
+              (([.assets[].name] | length) ==
+               ([.assets[].name] | unique | length)) and
+              ([.assets[] |
+                select(.name == $archive) |
+                select(.state == "uploaded" and .size > 0)
+               ] | length) == 1 and
+              ([.assets[] |
+                select(.name == $checksum) |
+                select(.state == "uploaded" and .size > 0)
+               ] | length) == 1
+            ' <<< "$release_json"
+
+  # GHCR publication is ordered after every binary leg. A stable tag alone produces
+  # the additional latest image tag; a prerelease produces only its version tag.
   docker:
-    needs: [verify, create-release, binaries]
+    needs: [verify, create-draft-release, binaries]
     runs-on: ubuntu-latest
     permissions:
-      contents: read # checkout
-      packages: write # push to ghcr.io
+      contents: read
+      packages: write
+    outputs:
+      image_tags: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -238,13 +418,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Compute the image reference + tags WITHOUT interpolating the ref into a shell. The image
-      # path is lowercased automatically (GHCR requires it; `github.repository` may carry capitals).
-      # The validated tag from `verify` drives a semver pattern that emits the bare version
-      # (v0.1.2 -> 0.1.2). Disable metadata-action's implicit latest behavior so the only
-      # `latest` tag below is explicitly gated by verify's strict stable-tag output.
-      # metadata-action also emits an org.opencontainers.image.source label linking the package to
-      # this repo — required or the first push to a new package 403s even with packages: write.
       - name: Compute image tags and labels
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
@@ -256,9 +429,6 @@ jobs:
             type=semver,pattern={{version}},value=${{ needs.verify.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.verify.outputs.is_stable == 'true' }}
 
-      # Reuses the repo-root Dockerfile + context (linux/amd64, matching the ci.yml smoke test). No
-      # QEMU multi-arch: the Dockerfile compiles the crate from source, so emulated aarch64 builds
-      # would be prohibitively slow — the aarch64 story is the musl binary shipped by `binaries`.
       - name: Build and push to GHCR
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -266,3 +436,238 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # Verify the independent expected contract, asset metadata, and all seven SHA-256
+  # pairs without mutating the draft.
+  verify-draft-release:
+    needs: [verify, create-draft-release, binaries, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify exact draft assets and checksum contents
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_ID: ${{ needs.create-draft-release.outputs.release_id }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+          release_file="$RUNNER_TEMP/draft-release.json"
+          expected_file="$RUNNER_TEMP/expected-assets.txt"
+          actual_file="$RUNNER_TEMP/actual-assets.txt"
+          download_dir="$RUNNER_TEMP/release-assets"
+          mkdir -p "$download_dir"
+
+          gh api "repos/$GH_REPO/releases/$RELEASE_ID" > "$release_file"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --argjson prerelease "$IS_PRERELEASE" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == true and
+              .prerelease == $prerelease and
+              .published_at == null and
+              (.assets | length) == 14 and
+              (([.assets[].name] | length) ==
+               ([.assets[].name] | unique | length)) and
+              all(.assets[];
+                .state == "uploaded" and
+                .size > 0 and
+                (.digest | test("^sha256:[0-9a-f]{64}$"))
+              )
+            ' "$release_file"
+
+          targets=(
+            x86_64-unknown-linux-gnu
+            aarch64-unknown-linux-gnu
+            x86_64-unknown-linux-musl
+            aarch64-unknown-linux-musl
+            x86_64-apple-darwin
+            aarch64-apple-darwin
+            x86_64-pc-windows-msvc
+          )
+          : > "$expected_file"
+          for target in "${targets[@]}"; do
+            base="proxybroker-$TAG-$target"
+            if [ "$target" = "x86_64-pc-windows-msvc" ]; then
+              printf '%s.zip\n' "$base" >> "$expected_file"
+            else
+              printf '%s.tar.gz\n' "$base" >> "$expected_file"
+            fi
+            printf '%s.sha256\n' "$base" >> "$expected_file"
+          done
+          LC_ALL=C sort -o "$expected_file" "$expected_file"
+          test "$(wc -l < "$expected_file")" = '14'
+          test "$(sort -u "$expected_file" | wc -l)" = '14'
+
+          jq -r '.assets[].name' "$release_file" |
+            LC_ALL=C sort > "$actual_file"
+          cmp "$expected_file" "$actual_file"
+
+          jq -r '.assets[] | [.id, .name] | @tsv' "$release_file" |
+            while IFS=$'\t' read -r asset_id asset_name; do
+              gh api \
+                -H 'Accept: application/octet-stream' \
+                "repos/$GH_REPO/releases/assets/$asset_id" \
+                > "$download_dir/$asset_name"
+              test -s "$download_dir/$asset_name"
+            done
+
+          pair_count=0
+          for target in "${targets[@]}"; do
+            base="proxybroker-$TAG-$target"
+            if [ "$target" = "x86_64-pc-windows-msvc" ]; then
+              archive="$base.zip"
+            else
+              archive="$base.tar.gz"
+            fi
+            checksum="$base.sha256"
+            test -f "$download_dir/$archive"
+            test -f "$download_dir/$checksum"
+            test "$(wc -l < "$download_dir/$checksum")" = '1'
+            checksum_archive="$(awk 'NR == 1 { name = $2; sub(/^\\*/, "", name); print name }' "$download_dir/$checksum")"
+            test "$checksum_archive" = "$archive"
+            (
+              cd "$download_dir"
+              sha256sum -c "$checksum"
+            )
+            pair_count=$((pair_count + 1))
+          done
+          test "$pair_count" = '7'
+
+  # The only publication mutation runs after every preceding job and is followed by
+  # fresh identity, asset-set, and latest-state verification.
+  publish-release:
+    needs: [verify, create-draft-release, binaries, docker, verify-draft-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the complete verified draft exactly once
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_ID: ${{ needs.create-draft-release.outputs.release_id }}
+          IS_STABLE: ${{ needs.verify.outputs.is_stable }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+          IMAGE_TAGS: ${{ needs.docker.outputs.image_tags }}
+        run: |
+          set -euo pipefail
+          expected_file="$RUNNER_TEMP/expected-assets.txt"
+          before_file="$RUNNER_TEMP/release-before-publication.json"
+          payload="$RUNNER_TEMP/publish-release.json"
+          patch_response="$RUNNER_TEMP/publish-release-response.json"
+          patch_error="$RUNNER_TEMP/publish-release.err"
+          observed_file="$RUNNER_TEMP/release-after-publication.json"
+
+          targets=(
+            x86_64-unknown-linux-gnu
+            aarch64-unknown-linux-gnu
+            x86_64-unknown-linux-musl
+            aarch64-unknown-linux-musl
+            x86_64-apple-darwin
+            aarch64-apple-darwin
+            x86_64-pc-windows-msvc
+          )
+          : > "$expected_file"
+          for target in "${targets[@]}"; do
+            base="proxybroker-$TAG-$target"
+            if [ "$target" = "x86_64-pc-windows-msvc" ]; then
+              printf '%s.zip\n' "$base" >> "$expected_file"
+            else
+              printf '%s.tar.gz\n' "$base" >> "$expected_file"
+            fi
+            printf '%s.sha256\n' "$base" >> "$expected_file"
+          done
+          LC_ALL=C sort -o "$expected_file" "$expected_file"
+
+          gh api "repos/$GH_REPO/releases/$RELEASE_ID" > "$before_file"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --argjson prerelease "$IS_PRERELEASE" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == true and
+              .prerelease == $prerelease and
+              .published_at == null and
+              (.assets | length) == 14 and
+              (([.assets[].name] | length) ==
+               ([.assets[].name] | unique | length)) and
+              all(.assets[]; .state == "uploaded" and .size > 0)
+            ' "$before_file"
+          jq -r '.assets[].name' "$before_file" |
+            LC_ALL=C sort > "$RUNNER_TEMP/assets-before-publication.txt"
+          cmp "$expected_file" "$RUNNER_TEMP/assets-before-publication.txt"
+
+          if [ "$IS_STABLE" = "true" ]; then
+            test "$IS_PRERELEASE" = "false"
+            MAKE_LATEST=true
+            grep -Eq '(^|[[:space:]])ghcr\.io/.+:latest($|[[:space:]])' <<< "$IMAGE_TAGS"
+          else
+            test "$IS_STABLE" = "false"
+            test "$IS_PRERELEASE" = "true"
+            MAKE_LATEST=false
+            if grep -Eq '(^|[[:space:]])ghcr\.io/.+:latest($|[[:space:]])' <<< "$IMAGE_TAGS"; then
+              echo "::error::Prerelease image tags unexpectedly contain latest"
+              exit 1
+            fi
+          fi
+
+          jq -n \
+            --argjson prerelease "$IS_PRERELEASE" \
+            --arg make_latest "$MAKE_LATEST" '
+              {
+                draft: false,
+                prerelease: $prerelease,
+                make_latest: $make_latest
+              }
+            ' > "$payload"
+
+          set +e
+          gh api \
+            --method PATCH \
+            "repos/$GH_REPO/releases/$RELEASE_ID" \
+            --input "$payload" \
+            > "$patch_response" \
+            2> "$patch_error"
+          patch_status=$?
+          set -e
+
+          gh api "repos/$GH_REPO/releases/$RELEASE_ID" > "$observed_file"
+          if [ "$patch_status" -ne 0 ]; then
+            cat "$patch_error" >&2
+            echo "::error::Publication result is ambiguous; no second mutation will be attempted"
+            exit 1
+          fi
+
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --argjson prerelease "$IS_PRERELEASE" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == false and
+              .prerelease == $prerelease and
+              .published_at != null and
+              (.assets | length) == 14 and
+              (([.assets[].name] | length) ==
+               ([.assets[].name] | unique | length)) and
+              all(.assets[]; .state == "uploaded" and .size > 0)
+            ' "$observed_file"
+          jq -r '.assets[].name' "$observed_file" |
+            LC_ALL=C sort > "$RUNNER_TEMP/assets-after-publication.txt"
+          cmp "$expected_file" "$RUNNER_TEMP/assets-after-publication.txt"
+
+          gh api "repos/$GH_REPO/releases/latest" \
+            > "$RUNNER_TEMP/latest-release.json"
+          latest_id="$(jq -er '.id' "$RUNNER_TEMP/latest-release.json")"
+          if [ "$IS_STABLE" = "true" ]; then
+            test "$latest_id" = "$RELEASE_ID"
+          else
+            test "$latest_id" != "$RELEASE_ID"
+          fi
