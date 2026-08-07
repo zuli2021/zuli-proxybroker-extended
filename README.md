@@ -1,11 +1,27 @@
 # Zuli ProxyBroker Extended
 
 [![Release](https://img.shields.io/github/v/release/zuli2021/zuli-proxybroker-extended?display_name=tag&sort=semver)](https://github.com/zuli2021/zuli-proxybroker-extended/releases/latest)
+[![CI](https://github.com/zuli2021/zuli-proxybroker-extended/actions/workflows/ci.yml/badge.svg)](https://github.com/zuli2021/zuli-proxybroker-extended/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/zuli2021/zuli-proxybroker-extended)](https://github.com/zuli2021/zuli-proxybroker-extended/blob/main/LICENSE)
 
-Zuli ProxyBroker Extended is a Rust library and CLI for finding, validating, and
-serving rotating public HTTP(S), SOCKS4, and SOCKS5 proxies.
+**Fast Rust proxy scraper, checker, validator, and rotating proxy pool for HTTP/HTTPS, SOCKS4, and SOCKS5.**
 
-It is an independently maintained derivative of
+`proxybroker` is a Rust CLI and library for discovering public proxies,
+validating and classifying them, and serving a rotating proxy endpoint.
+It includes offline DB-IP country lookup and supports optional Redis-backed
+storage.
+
+[Download v1.0.0](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.0.0) · [Documentation](https://zuli2021.github.io/zuli-proxybroker-extended/) · [Installation](#installation)
+
+## Highlights
+
+- Discover and validate public HTTP/HTTPS, SOCKS4, and SOCKS5 proxies.
+- Check, classify, and select proxies with offline country lookup.
+- Serve a rotating proxy endpoint or embed the Rust library directly.
+- Stable v1.0.0 release assets are available for Linux, macOS, and Windows.
+- Container distribution is available through GHCR.
+
+Zuli ProxyBroker Extended is an independently maintained derivative of
 [proxybroker-rs](https://github.com/TurtIeSocks/proxybroker-rs). The upstream
 project derives from [proxybroker2](https://github.com/bluet/proxybroker2),
 itself the maintained successor to
