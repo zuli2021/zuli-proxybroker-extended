@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Broker
 
 The [`Broker`](#broker) is the entry point to the library: it turns a set of

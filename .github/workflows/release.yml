@@ -1,3 +1,6 @@
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
+
 name: Release
 
 # A pushed version tag is verified before an unpublished draft Release is created.

@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Persistence (`--state`)
 
 By default Zuli ProxyBroker Extended keeps a proxy's history for a single process. A flat

@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Examples
 
 Every runnable example lives in the repository's `examples/` directory. After the public Zuli

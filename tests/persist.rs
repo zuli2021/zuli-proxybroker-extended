@@ -1,3 +1,6 @@
+// Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+// See NOTICE for attribution and the statement of changes.
+
 //! D2 — the SQLite `Store` backend round-trips proxy history across runs. All against a temp-dir DB,
 //! zero network (constraint C5). Raw-column assertions use rusqlite directly (a `store-sqlite` dep).
 #![cfg(feature = "store-sqlite")]

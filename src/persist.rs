@@ -1,3 +1,6 @@
+// Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+// See NOTICE for attribution and the statement of changes.
+
 //! D2 — durable cross-run proxy state. A backend-agnostic [`Store`] trait plus the bundled
 //! `store-sqlite` backend (`SqliteStore`).
 //!

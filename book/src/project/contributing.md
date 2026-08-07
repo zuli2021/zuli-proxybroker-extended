@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Contributing
 
 Zuli ProxyBroker Extended is a single-maintainer project with a deliberately strict, fully offline

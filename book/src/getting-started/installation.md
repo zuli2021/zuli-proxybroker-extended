@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Installation
 
 Zuli ProxyBroker Extended is usable from a local source checkout today. It is **not** published to

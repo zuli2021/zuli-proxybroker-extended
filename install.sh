@@ -1,4 +1,6 @@
 #!/bin/sh
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
 # proxybroker installer — downloads the release binary for your OS/arch, verifies its checksum,
 # and installs it to user directories. No sudo, no build toolchain.
 #

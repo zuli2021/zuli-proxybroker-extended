@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Providers
 
 A *provider* is a page that lists proxies. Zuli ProxyBroker Extended treats providers as **data, not

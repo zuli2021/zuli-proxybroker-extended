@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Observability
 
 Zuli ProxyBroker Extended exposes four ways to see what it is doing at runtime: a Prometheus metrics

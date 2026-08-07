@@ -1,3 +1,6 @@
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
+
 # A `FROM scratch` image: the entire crate — the geo database (include_bytes!) and providers.yaml
 # (include_str!) — is embedded, and TLS is ring-only rustls, so the static musl binary has zero
 # runtime file or libc dependencies. The final image is just that binary plus the licences.

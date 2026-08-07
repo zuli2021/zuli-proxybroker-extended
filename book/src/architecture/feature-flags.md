@@ -1,3 +1,6 @@
+<!-- Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+See NOTICE for attribution and the statement of changes. -->
+
 # Feature flags
 
 Zuli ProxyBroker Extended is a library first and a CLI second, so almost everything beyond the core
