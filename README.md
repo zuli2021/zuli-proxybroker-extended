@@ -35,10 +35,25 @@ includes offline DB-IP country lookup and optional Redis-backed storage.
 - **crates.io**: `zuli-proxybroker-extended` 1.1.0 is published on crates.io. The package
   provides the `proxybroker` Rust library and CLI and carries the same Apache-2.0 code license,
   required NOTICE provenance, and separately licensed bundled DB-IP data as the canonical release.
-- **Docker Hub**: planned as a **mirror only** of the canonical GHCR image, non-blocking and
-  outside the canonical release path.
-- **Package managers**: repository-side preparation for WinGet, Scoop, Homebrew, Chocolatey,
-  AUR, Nixpkgs, and Termux lives in [`distribution/`](distribution/). Nothing has been submitted.
+- **Docker Hub**: a **public mirror** exists at `docker.io/zuli2021/zuli-proxybroker-extended`,
+  with v1.1.0 mirrored as both `1.1.0` and `latest`. GHCR remains canonical/authoritative; the
+  Docker Hub mirror is non-blocking and not independently built. Future automatic mirroring
+  (`.github/workflows/docker-hub-mirror.yml`) remains credential/configuration dependent.
+- **Package managers**:
+  - **WinGet**: submitted as PR [#414112](https://github.com/microsoft/winget-pkgs/pull/414112)
+    (`zuli2021.ZuliProxyBrokerExtended` 1.1.0); CLA and validation completed; awaiting upstream
+    community moderator review.
+  - **Chocolatey**: `zuli-proxybroker-extended` 1.1.0 submitted; pending community
+    moderation/approval.
+  - **AUR**: technically validated but not submitted; a public maintainer identity is required.
+  - **Scoop Main**: not submitted; blocked by the current external inclusion/notability policy.
+  - **Homebrew Core**: not submitted; blocked by the current external notability/repository-age
+    policy.
+  - **Nixpkgs**: not submitted; Nix tooling/SRI and maintainer-entry work remains.
+  - **Termux**: not submitted; the current main-repository policy blocks packages installable
+    through `cargo`.
+
+  None of the blocked package-manager surfaces are published.
 
 ## Quick Start
 
@@ -103,8 +118,17 @@ The image targets Linux amd64 (Linux aarch64 users should use the release binary
 it is published only after the release and all binary assets succeed. A container
 must bind `0.0.0.0` to be reachable through a published port.
 
-A Docker Hub mirror (`docker.io/zuli2021/zuli-proxybroker-extended`) is planned as a
-non-blocking copy of the canonical GHCR image. It never gates the canonical release path.
+**GHCR is canonical.** A public **Docker Hub mirror** is also available at
+`docker.io/zuli2021/zuli-proxybroker-extended` (both `1.1.0` and `latest` exist), copied from
+the canonical GHCR image without independent builds:
+
+```sh
+docker run --rm -p 8888:8888 \
+  docker.io/zuli2021/zuli-proxybroker-extended:1.1.0 \
+  serve --host 0.0.0.0:8888
+```
+
+The Docker Hub mirror never gates the canonical release path.
 
 ## Usage
 

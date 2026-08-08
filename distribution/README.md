@@ -12,8 +12,24 @@ Canonical distribution surfaces (unchanged by this folder):
 - **GHCR** — the canonical container registry; `1.1.0` and `latest` images are published.
 - **crates.io** — `zuli-proxybroker-extended` 1.1.0 is published; its registry checksum is
   `cbb69f6a9b4cd45160e51acd4267d200507d2c2f73030e7703ba3f6919c8f10c`.
-- **Docker Hub** — mirror only, non-blocking (`.github/workflows/docker-hub-mirror.yml`);
-  **not yet published/configured**.
+- **Docker Hub** — a **public mirror** is published at `docker.io/zuli2021/zuli-proxybroker-extended`
+  with tags `1.1.0` and `latest`, copied from the canonical GHCR image without rebuilding. GHCR
+  remains canonical/authoritative; the mirror is non-blocking. Future automated release mirroring
+  (`.github/workflows/docker-hub-mirror.yml`) remains credential/configuration dependent until
+  `DOCKERHUB_MIRROR_ENABLED`/`DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` are configured.
+
+## Current downstream state
+
+| Ecosystem | v1.1.0 state |
+| --- | --- |
+| WinGet | Submitted as PR #414112; pending upstream moderator review |
+| Chocolatey | Submitted; pending community moderation |
+| Docker Hub | Public mirror published and verified (`1.1.0`, `latest`) |
+| AUR | Not submitted; maintainer public identity required |
+| Scoop Main | Not submitted; blocked by external inclusion policy |
+| Homebrew Core | Not submitted; blocked by external policy |
+| Nixpkgs | Not submitted; tooling/maintainer prerequisites remain |
+| Termux | Not submitted; blocked by current cargo-install policy |
 
 ## Identities
 
@@ -100,12 +116,25 @@ Notes:
   `NIX_GIT_SRI_TOOLING_UNAVAILABLE` is reported and the Nix template is not rendered (no
   placeholder is fabricated).
 
-## Owner-gated actions (not performed here)
+## Owner-gated actions (completed vs. future)
+
+Completed for v1.1.0:
+
+- GitHub Release v1.1.0 published (16 assets).
+- GHCR `1.1.0` and `latest` published.
+- crates.io `zuli-proxybroker-extended` 1.1.0 published.
+- Docker Hub public mirror `1.1.0`/`latest` published (manual backfill from canonical GHCR).
+- WinGet submitted (PR #414112) and Chocolatey submitted (pending moderation).
+
+Future owner-gated actions:
 
 - Future crates.io version publications remain owner-gated.
-- Configuring Docker Hub secrets/variables and enabling the mirror (not yet configured).
-- Submitting WinGet/Scoop/Homebrew/Chocolatey/AUR/Nixpkgs/Termux packages (nothing submitted).
-- Final per-ecosystem collision/identity checks immediately before the first submission of each.
+- Future package-manager submissions/versions remain owner-gated.
+- Docker Hub future automation credential configuration (`DOCKERHUB_MIRROR_ENABLED`,
+  `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`) as applicable.
+- AUR submission after the public maintainer identity is closed.
+- Final per-ecosystem collision/identity checks immediately before each first submission.
+- Any future external publication.
 
 ## Required notices in every distributed artifact
 
