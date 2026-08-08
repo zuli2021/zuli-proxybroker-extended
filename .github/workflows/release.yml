@@ -453,6 +453,10 @@ jobs:
           base="proxybroker-$TAG-aarch64-linux-android"
           archive="target/android-release/$base.tar.gz"
           checksum="target/android-release/$base.sha256"
+          # GitHub stores assets by basename; the jq comparisons must use the basenames while
+          # `gh release upload` keeps the filesystem paths.
+          archive_name="$(basename "$archive")"
+          checksum_name="$(basename "$checksum")"
           test -f "$archive" && test -s "$archive"
           test -f "$checksum" && test -s "$checksum"
           test "$(wc -l < "$checksum")" = '1'
@@ -472,8 +476,8 @@ jobs:
             ' <<< "$release_json"
           existing_count="$(
             jq \
-              --arg archive "$archive" \
-              --arg checksum "$checksum" '
+              --arg archive "$archive_name" \
+              --arg checksum "$checksum_name" '
                 [
                   .assets[] |
                   select(
@@ -498,8 +502,8 @@ jobs:
           jq -e \
             --argjson release_id "$RELEASE_ID" \
             --arg tag "$TAG" \
-            --arg archive "$archive" \
-            --arg checksum "$checksum" '
+            --arg archive "$archive_name" \
+            --arg checksum "$checksum_name" '
               .id == $release_id and
               .tag_name == $tag and
               .draft == true and
