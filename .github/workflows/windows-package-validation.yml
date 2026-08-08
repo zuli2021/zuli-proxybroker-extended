@@ -1,0 +1,191 @@
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
+
+name: Windows Package Validation
+
+# Temporary, manual-dispatch-only native validation for the WinGet and Chocolatey package
+# manifests (DIST-001). WinGet and Chocolatey are SEPARATE independent jobs with no `needs:`
+# dependency, so a WinGet failure cannot skip Chocolatey. Publishes/submits NOTHING: no push
+# trigger, no secrets, no write permissions, no registry login, no package submission.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-package-validation
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: v1.1.0
+  VERSION: 1.1.0
+  WINDOWS_ASSET: proxybroker-v1.1.0-x86_64-pc-windows-msvc.zip
+  WINDOWS_ZIP_SHA256: 498fe40e8881538fe9ec8b99a9b5e3a07ada163ae965159fd3919c982e2dfd5e
+
+jobs:
+  winget-native:
+    name: WinGet native validation
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Download and verify the canonical Windows asset
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP $env:WINDOWS_ASSET
+          Invoke-WebRequest -Uri "https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/$env:TAG/$env:WINDOWS_ASSET" -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          Write-Host "computed SHA-256: $hash"
+          if ($hash -ne $env:WINDOWS_ZIP_SHA256) { throw "Windows asset SHA-256 mismatch" }
+
+      - name: Render WinGet manifest from template
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rendered/winget"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@WINDOWS_ZIP_SHA256@/$WINDOWS_ZIP_SHA256/g" \
+            distribution/winget/zuli2021.ZuliProxyBrokerExtended.yaml.template \
+            > "$RUNNER_TEMP/rendered/winget/zuli2021.ZuliProxyBrokerExtended.yaml"
+
+      - name: WinGet validate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          winget --version
+          winget validate --manifest "$env:RUNNER_TEMP\rendered\winget\zuli2021.ZuliProxyBrokerExtended.yaml" --disable-interactivity
+
+      - name: WinGet local manifest install/run/uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = "$env:RUNNER_TEMP\rendered\winget\zuli2021.ZuliProxyBrokerExtended.yaml"
+          $primaryError = $null
+          $cleanupErrors = @()
+          $installed = $false
+          $localManifestEnabled = $false
+          try {
+            winget settings --enable LocalManifestFiles
+            if ($LASTEXITCODE -ne 0) { throw "failed to enable LocalManifestFiles" }
+            $localManifestEnabled = $true
+
+            winget install --manifest $manifest --accept-package-agreements --accept-source-agreements --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { throw "winget local install failed" }
+            $installed = $true
+
+            $cmd = Get-Command proxybroker -ErrorAction Stop
+            Write-Host "proxybroker at: $($cmd.Source)"
+
+            $out = (& proxybroker --version 2>&1 | Out-String).Trim()
+            Write-Host $out
+            if ($out -notmatch 'proxybroker 1\.1\.0') { throw "unexpected proxybroker version" }
+            if ($out -notmatch 'IP Geolocation by DB-IP') { throw "missing DB-IP attribution" }
+          }
+          catch {
+            $primaryError = $_
+          }
+          finally {
+            if ($installed) {
+              winget uninstall --manifest $manifest --accept-source-agreements --disable-interactivity
+              if ($LASTEXITCODE -ne 0) { $cleanupErrors += "winget uninstall failed" }
+            }
+            if ($localManifestEnabled) {
+              winget settings --disable LocalManifestFiles
+              if ($LASTEXITCODE -ne 0) { $cleanupErrors += "failed to disable LocalManifestFiles" }
+            }
+          }
+          if ($primaryError) { throw $primaryError }
+          if ($cleanupErrors.Count -gt 0) { throw ($cleanupErrors -join "; ") }
+          # Verify the portable alias no longer resolves as an installed WinGet package.
+          $still = (winget list --id zuli2021.ZuliProxyBrokerExtended --disable-interactivity 2>$null | Out-String)
+          Write-Host "winget list after uninstall:"; Write-Host $still
+          if ($still -match 'zuli2021\.ZuliProxyBrokerExtended') { throw "package still listed after uninstall" }
+          Write-Host "WinGet install/run/uninstall validated; LocalManifestFiles disabled"
+
+  chocolatey-native:
+    name: Chocolatey native validation
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Download and verify the canonical Windows asset
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP $env:WINDOWS_ASSET
+          Invoke-WebRequest -Uri "https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/$env:TAG/$env:WINDOWS_ASSET" -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          Write-Host "computed SHA-256: $hash"
+          if ($hash -ne $env:WINDOWS_ZIP_SHA256) { throw "Windows asset SHA-256 mismatch" }
+
+      - name: Render Chocolatey manifests from templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rendered/choco/tools"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@WINDOWS_ZIP_SHA256@/$WINDOWS_ZIP_SHA256/g" \
+            distribution/chocolatey/zuli-proxybroker-extended.nuspec.template \
+            > "$RUNNER_TEMP/rendered/choco/zuli-proxybroker-extended.nuspec"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@WINDOWS_ZIP_SHA256@/$WINDOWS_ZIP_SHA256/g" \
+            distribution/chocolatey/tools/chocolateyinstall.ps1.template \
+            > "$RUNNER_TEMP/rendered/choco/tools/chocolateyinstall.ps1"
+          echo "rendered nuspec + chocolateyinstall.ps1"
+
+      - name: Chocolatey version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $choco = Get-Command choco -ErrorAction SilentlyContinue
+          if (-not $choco) { throw "choco not available on this runner" }
+          & choco --version
+
+      - name: Chocolatey pack and inspect
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgDir = Join-Path $env:RUNNER_TEMP "choco-package"
+          New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
+          & choco pack "$env:RUNNER_TEMP\rendered\choco\zuli-proxybroker-extended.nuspec" --outputdirectory $pkgDir
+          $nupkg = Get-ChildItem $pkgDir -Filter 'zuli-proxybroker-extended.1.1.0.nupkg'
+          if (-not $nupkg) { throw "expected nupkg not produced" }
+          Write-Host "nupkg: $($nupkg.FullName)"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($nupkg.FullName)
+          try {
+            $names = $zip.Entries | ForEach-Object { $_.FullName }
+            Write-Host "nupkg entries:"; $names
+            if ($names -notcontains 'tools/chocolateyinstall.ps1') { throw "missing tools/chocolateyinstall.ps1" }
+            if ($names | Where-Object { $_ -match 'proxybroker\.exe$' }) { throw "package embeds a binary (not allowed)" }
+            if ($names | Where-Object { $_ -match 'credentials|\.pem|\.env|\.ssh' }) { throw "suspicious private file in package" }
+          } finally { $zip.Dispose() }
+          $install = Get-Content "$env:RUNNER_TEMP\rendered\choco\tools\chocolateyinstall.ps1" -Raw
+          if ($install -notmatch 'zuli2021/zuli-proxybroker-extended/releases/download/v1\.1\.0/proxybroker-v1\.1\.0-x86_64-pc-windows-msvc\.zip') { throw "install script does not use canonical v1.1.0 ZIP" }
+          if ($install -notmatch '498fe40e8881538fe9ec8b99a9b5e3a07ada163ae965159fd3919c982e2dfd5e') { throw "install script checksum mismatch" }
+
+      - name: Chocolatey local install/run/uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgDir = Join-Path $env:RUNNER_TEMP "choco-package"
+          & choco install zuli-proxybroker-extended --version 1.1.0 --source $pkgDir --exact -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco install failed" }
+          $cmd = Get-Command proxybroker -ErrorAction Stop
+          Write-Host "proxybroker at: $($cmd.Source)"
+          $out = (& proxybroker --version 2>&1 | Out-String).Trim()
+          Write-Host $out
+          if ($out -notmatch 'proxybroker 1\.1\.0') { throw "unexpected proxybroker version" }
+          if ($out -notmatch 'IP Geolocation by DB-IP') { throw "missing DB-IP attribution" }
+          & choco uninstall zuli-proxybroker-extended --version 1.1.0 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco uninstall failed" }
+          $still = (& choco list --local-only --exact zuli-proxybroker-extended 2>$null | Out-String).Trim()
+          Write-Host "choco list after uninstall:"; Write-Host $still
+          if ($still -match 'zuli-proxybroker-extended') { throw "package still installed after uninstall" }
+          Write-Host "Chocolatey pack/install/run/uninstall validated"
