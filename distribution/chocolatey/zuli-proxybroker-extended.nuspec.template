@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zuli ProxyBroker Extended @VERSION@ — Chocolatey package (DIST-001).
+     Rendered from distribution/chocolatey/zuli-proxybroker-extended.nuspec.template by
+     distribution/materialize.sh. Final exact registry identifiers are owner-verified before
+     the first submission; publish via `choco pack` + `choco push` (community.chocolatey.org). -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>zuli-proxybroker-extended</id>
+    <version>@VERSION@</version>
+    <title>Zuli ProxyBroker Extended</title>
+    <authors>zuli2021</authors>
+    <owners>zuli2021</owners>
+    <projectUrl>https://github.com/zuli2021/zuli-proxybroker-extended</projectUrl>
+    <licenseUrl>https://github.com/zuli2021/zuli-proxybroker-extended/blob/@TAG@/LICENSE</licenseUrl>
+    <packageSourceUrl>https://github.com/zuli2021/zuli-proxybroker-extended</packageSourceUrl>
+    <releaseNotes>https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/@TAG@</releaseNotes>
+    <summary>Rust CLI and library for public HTTP(S)/SOCKS4/5 proxy discovery, validation, and rotating serving.</summary>
+    <description>
+Zuli ProxyBroker Extended is a Rust CLI and library that discovers public proxies,
+validates and classifies them by anonymity, and serves a rotating proxy endpoint, with
+offline DB-IP country lookup. The executable is `proxybroker`.
+
+This portable package downloads the official x86_64 Windows release archive from the
+canonical GitHub Release and verifies its SHA-256 checksum before installing. The archive
+ships with the Apache-2.0 LICENSE, the DB-IP CC BY 4.0 data notice (LICENSE-DATA), and NOTICE.
+    </description>
+    <tags>proxy socks http https scraper checker</tags>
+    <copyright>Copyright 2026 Zuli2021</copyright>
+  </metadata>
+</package>

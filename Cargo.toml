@@ -3,7 +3,7 @@
 
 [package]
 name = "zuli-proxybroker-extended"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies. Extended Rust library and CLI."
@@ -11,7 +11,9 @@ repository = "https://github.com/zuli2021/zuli-proxybroker-extended"
 homepage = "https://github.com/zuli2021/zuli-proxybroker-extended"
 license = "Apache-2.0"
 readme = "README.md"
-publish = false
+# Registry publication is prepared (owner-gated): `publish = false` was removed as
+# approved. Actual crates.io submission remains an owner action, performed only after
+# the pre-submission collision check immediately before publication.
 keywords = ["proxy", "socks", "http", "scraper", "checker"]
 categories = ["network-programming", "command-line-utilities"]
 # The bundled geo database is data, not code, and is licensed separately (CC BY 4.0).

@@ -1,0 +1,21 @@
+# Zuli ProxyBroker Extended @VERSION@ — Homebrew formula (DIST-001).
+# Rendered from distribution/homebrew/zuli-proxybroker-extended.rb.template by
+# distribution/materialize.sh. Final exact registry identifiers are owner-verified before
+# the first submission; final submission is a PR to Homebrew/homebrew-core.
+class ZuliProxybrokerExtended < Formula
+  desc "Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies"
+  homepage "https://github.com/zuli2021/zuli-proxybroker-extended"
+  url "https://github.com/zuli2021/zuli-proxybroker-extended/archive/refs/tags/@TAG@.tar.gz"
+  sha256 "@SOURCE_TARBALL_SHA256@"
+  license "Apache-2.0"
+
+  depends_on "rust" => :build
+
+  def install
+    system "cargo", "install", "--locked", *std_cargo_args
+  end
+
+  test do
+    assert_match "IP Geolocation by DB-IP", shell_output("#{bin}/proxybroker --version")
+  end
+end

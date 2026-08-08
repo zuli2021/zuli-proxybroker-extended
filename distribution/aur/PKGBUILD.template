@@ -1,0 +1,31 @@
+# Maintainer: <owner to fill in before submission>
+# Contributor: <owner to fill in before submission>
+# Zuli ProxyBroker Extended @VERSION@ — AUR PKGBUILD (DIST-001).
+# Rendered from distribution/aur/PKGBUILD.template by distribution/materialize.sh, then
+# .SRCINFO is generated with `makepkg --printsrcinfo`. Final exact registry identifiers are
+# owner-verified before the first submission; submission is a push to the AUR.
+pkgname=zuli-proxybroker-extended
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies"
+arch=('x86_64' 'aarch64')
+url="https://github.com/zuli2021/zuli-proxybroker-extended"
+license=('Apache-2.0')
+depends=('gcc-libs')
+makedepends=('rust')
+source=("https://github.com/zuli2021/zuli-proxybroker-extended/archive/refs/tags/@TAG@.tar.gz")
+sha256sums=('@SOURCE_TARBALL_SHA256@')
+
+build() {
+	cd "$srcdir/zuli-proxybroker-extended-$pkgver"
+	cargo build --release --locked
+}
+
+package() {
+	cd "$srcdir/zuli-proxybroker-extended-$pkgver"
+	install -Dm755 "target/release/proxybroker" "$pkgdir/usr/bin/proxybroker"
+	install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+	install -Dm644 LICENSE-DATA "$pkgdir/usr/share/licenses/$pkgname/LICENSE-DATA"
+	install -Dm644 NOTICE "$pkgdir/usr/share/licenses/$pkgname/NOTICE"
+	install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

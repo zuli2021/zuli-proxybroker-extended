@@ -1,0 +1,30 @@
+{
+  "##": "Zuli ProxyBroker Extended @VERSION@ — Scoop manifest (DIST-001).",
+  "##": "Rendered from distribution/scoop/zuli-proxybroker-extended.json.template by",
+  "##": "distribution/materialize.sh. Final exact registry identifiers are owner-verified",
+  "##": "before the first submission; final submission is a PR to a Scoop bucket.",
+  "version": "@VERSION@",
+  "description": "Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies.",
+  "homepage": "https://github.com/zuli2021/zuli-proxybroker-extended",
+  "license": "Apache-2.0",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/@TAG@/proxybroker-@TAG@-x86_64-pc-windows-msvc.zip",
+      "hash": "@WINDOWS_ZIP_SHA256@"
+    }
+  },
+  "bin": "proxybroker",
+  "checkver": {
+    "github": "https://github.com/zuli2021/zuli-proxybroker-extended"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/$version/proxybroker-$version-x86_64-pc-windows-msvc.zip"
+      }
+    },
+    "hash": {
+      "url": "$baseurl/proxybroker-$version-x86_64-pc-windows-msvc.sha256"
+    }
+  }
+}

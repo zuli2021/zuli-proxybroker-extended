@@ -3,8 +3,7 @@
 
 [toolchain]
 # Pinned to stable on purpose. This repository declares Rust 1.85 as its minimum
-# supported Rust version. crates.io publication is intentionally disabled pending
-# separate approval. A library that needs nightly is a library most people cannot
+# supported Rust version. A library that needs nightly is a library most people cannot
 # use; selecting stable here keeps builds independent of the rustup default.
 channel = "stable"
 components = ["rustfmt", "clippy"]

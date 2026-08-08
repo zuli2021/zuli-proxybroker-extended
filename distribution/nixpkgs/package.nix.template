@@ -1,0 +1,38 @@
+# Nixpkgs package template for Zuli ProxyBroker Extended v1.1.0 (DIST-001).
+# Template - NOT a final derivation. Replace @TAG@/@VERSION@/@SOURCE_GIT_SRI@ with
+# distribution/materialize.sh. The `hash` field is the SRI of the git export, produced with
+# `nix-prefetch-git --url https://github.com/zuli2021/zuli-proxybroker-extended --rev @TAG@`
+# (NOT the GitHub tarball SHA-256; fetchFromGitHub hashes the git export).
+# A copy of the repository's Cargo.lock must sit beside this file (as `./Cargo.lock`) in the
+# nixpkgs by-name directory. Final submission is a PR to NixOS/nixpkgs at
+# pkgs/by-name/zu/zuli-proxybroker-extended/.
+{ lib
+, rustPlatform
+, fetchFromGitHub
+}:
+
+rustPlatform.buildRustPackage (finalAttrs: {
+  pname = "zuli-proxybroker-extended";
+  version = "@VERSION@";
+
+  src = fetchFromGitHub {
+    owner = "zuli2021";
+    repo = "zuli-proxybroker-extended";
+    rev = "@TAG@";
+    hash = "@SOURCE_GIT_SRI@";
+  };
+
+  # The repository commits its Cargo.lock; the cargoLock form avoids a cargoHash bump on
+  # dependency changes and is validated against the pinned lockfile at build time.
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+  };
+
+  meta = with lib; {
+    description = "Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies";
+    homepage = "https://github.com/zuli2021/zuli-proxybroker-extended";
+    license = licenses.asl20;
+    maintainers = with maintainers; [ ];
+    mainProgram = "proxybroker";
+  };
+})

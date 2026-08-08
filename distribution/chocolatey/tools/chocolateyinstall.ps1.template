@@ -1,0 +1,13 @@
+# Zuli ProxyBroker Extended @VERSION@ — Chocolatey install script (DIST-001).
+# Rendered from distribution/chocolatey/tools/chocolateyinstall.ps1.template by
+# distribution/materialize.sh.
+$ErrorActionPreference = 'Stop'
+
+$toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
+
+Install-ChocolateyZipPackage `
+  -PackageName 'zuli-proxybroker-extended' `
+  -Url 'https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/@TAG@/proxybroker-@TAG@-x86_64-pc-windows-msvc.zip' `
+  -UnzipLocation $toolsDir `
+  -Checksum '@WINDOWS_ZIP_SHA256@' `
+  -ChecksumType 'sha256'

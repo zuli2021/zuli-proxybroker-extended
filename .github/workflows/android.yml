@@ -1,0 +1,84 @@
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
+
+name: Android CI
+
+# Dedicated Android CI coverage (DIST-001). Builds the real `proxybroker` executable for
+# aarch64-linux-android with the SAME default feature set as desktop (cli, server, geo,
+# geo-bundled), validates the ELF architecture, and exercises the release packaging/checksum
+# path via scripts/build-android.sh (the single source of truth for the Android build).
+# Deliberately a separate workflow: Android must never be hidden inside the desktop release
+# matrix, and this job publishes nothing.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # Current Android NDK LTS (the Rust project supports the most recent LTS NDK; r27d is the
+  # LTS line as of 2026-08-08). SHA-1 is the checksum Google publishes for NDK archives on the
+  # official download page (https://developer.android.com/ndk/downloads) and in
+  # https://dl.google.com/android/repository/repository2-3.xml.
+  ANDROID_NDK_VERSION: r27d
+  ANDROID_NDK_SHA1: 22105e410cf29afcf163760cc95522b9fb981121
+  ANDROID_NDK_ZIP: "663956036"
+  ANDROID_NDK_URL: "https://dl.google.com/android/repository/android-ndk-r27d-linux.zip"
+
+jobs:
+  build-android:
+    name: aarch64-linux-android (default features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install the Android NDK (current LTS)
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/android-ndk-r${ANDROID_NDK_VERSION}-linux.zip"
+          curl --fail --location --silent --show-error --proto '=https' --output "$archive" "$ANDROID_NDK_URL"
+          test "$(stat -c %s "$archive")" = "$ANDROID_NDK_ZIP"
+          printf '%s  %s\n' "$ANDROID_NDK_SHA1" "$archive" | sha1sum -c -
+          unzip -q "$archive" -d "$RUNNER_TEMP"
+          ndk_dir="$RUNNER_TEMP/android-ndk-r${ANDROID_NDK_VERSION}"
+          test -d "$ndk_dir/toolchains/llvm/prebuilt"
+          echo "ANDROID_NDK_HOME=$ndk_dir" >> "$GITHUB_ENV"
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          key: aarch64-linux-android
+
+      # Build + validate the artifact architecture with the default feature set. The script
+      # deliberately does not pass --no-default-features, so the default feature contract
+      # (cli, server, geo, geo-bundled) is proven on Android.
+      - name: Build and validate the Android binary
+        run: |
+          bash scripts/build-android.sh
+
+      # Exercise the release packaging/checksum path against the current crate version and
+      # prove the checksum round-trips. Nothing here is published.
+      - name: Package and checksum the Android artifact
+        run: |
+          set -euo pipefail
+          version="$(cargo metadata --format-version 1 --no-deps --locked | jq -r '.packages[0].version')"
+          bash scripts/build-android.sh "v${version}"
+          out_dir="target/android-release"
+          test -s "$out_dir/proxybroker-v${version}-aarch64-linux-android.tar.gz"
+          test -s "$out_dir/proxybroker-v${version}-aarch64-linux-android.sha256"
+          (
+            cd "$out_dir"
+            sha256sum -c "proxybroker-v${version}-aarch64-linux-android.sha256"
+          )
+          printf 'Android packaging + checksum verified for v%s\n' "$version"

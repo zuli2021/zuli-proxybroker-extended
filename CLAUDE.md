@@ -76,14 +76,20 @@ dedicated `store-redis` job.
 `.github/workflows/ci.yml` has three jobs: **test** (fmt/clippy/all-features/no-default/cli-only),
 **dist** (static musl build + FROM-scratch Docker + shellcheck `install.sh`), **store-redis**.
 
-Release policy: crates.io publication is intentionally disabled pending separate approval. After the
-public Zuli repository exists, a valid version tag must still equal the `Cargo.toml` version. The
-reviewed release workflow first runs `cargo test --all-features --locked` and
+Release policy: crates.io publication is prepared for v1.1.0 (package identity
+`zuli-proxybroker-extended`, `publish = false` removed as approved) but remains **owner-gated** —
+do not run `cargo publish` except `--dry-run`, and never before a fresh read-only collision
+check immediately before the actual submission. After the
+public Zuli repository exists, a valid version tag must still equal the `Cargo.toml` version.
+The reviewed release workflow first runs `cargo test --all-features --locked` and
 `cargo package --locked`, then creates the GitHub Release, uploads the binary matrix, and publishes
 the GHCR image. Only a canonical stable tag (`vMAJOR.MINOR.PATCH`) may move `latest`; accepted
 prerelease tags receive only their version-specific image tag. GitHub Release and GHCR publication
 occur only through that reviewed workflow after valid-tag verification; this guide does not claim
-that any public Zuli release or image already exists. Binary-matrix quirk:
+that any public Zuli release or image already exists. Android is a canonical release binary for
+v1.1.0 (`aarch64-linux-android`, default features), built in a **dedicated** Android
+workflow/job — never as an extra entry inside the desktop binary matrix. Docker Hub is
+**mirror-only and non-blocking**; it must never gate the canonical GHCR release. Binary-matrix quirk:
 `aarch64-linux-musl` cross-builds on x86 `ubuntu-latest`, `x86_64-macos` on Apple-Silicon
 `macos-14` (their "native" runners do not build cleanly on GitHub's fleet).
 

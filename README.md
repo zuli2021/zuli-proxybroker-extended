@@ -18,6 +18,27 @@ includes offline DB-IP country lookup and optional Redis-backed storage.
 - Check, classify, and select proxies with offline country lookup.
 - Serve a rotating proxy endpoint or embed the Rust library directly.
 - Stable v1.0.0 release assets for Linux, macOS, and Windows; container image on GHCR.
+- v1.1.0 (next release) is the **distribution closure**: it adds an `aarch64-linux-android`
+  release binary with the full default feature set, prepares crates.io publication, and
+  provides the repository-side material for a non-blocking Docker Hub mirror and downstream
+  package-manager distribution.
+
+## Distribution state
+
+- **GitHub Releases** and **GHCR** remain the canonical v1.1.0 distribution surfaces.
+  v1.1.0 will ship Linux, macOS, Windows, and Android binaries with SHA-256 checksums and the
+  `LICENSE`, `LICENSE-DATA`, and `NOTICE` notices.
+- **Android**: the `aarch64-linux-android` binary is built with the same default feature set as
+  desktop (`cli`, `server`, `geo`, `geo-bundled`). It is a canonical release asset, built and
+  validated in a dedicated Android CI workflow.
+- **crates.io**: the package is prepared for crates.io publication as
+  `zuli-proxybroker-extended` 1.1.0. Publication has **not** occurred yet; the actual submission
+  remains owner-gated and is preceded by a fresh collision check immediately before upload. Until
+  it happens, depend on the stable tag as a Git dependency (below).
+- **Docker Hub**: planned as a **mirror only** of the canonical GHCR image, non-blocking and
+  outside the canonical release path.
+- **Package managers**: repository-side preparation for WinGet, Scoop, Homebrew, Chocolatey,
+  AUR, Nixpkgs, and Termux lives in [`distribution/`](distribution/). Nothing has been submitted.
 
 ## Quick Start
 
@@ -30,6 +51,15 @@ Install the latest supported Linux or macOS binary (SHA-256 verified, fail-close
 curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/main/install.sh | sh
 PROXYBROKER_VERSION=v1.0.0   # optional: select this release explicitly
 ```
+
+### Android release
+
+v1.1.0 adds a canonical `proxybroker-<tag>-aarch64-linux-android.tar.gz` release asset
+(executable `proxybroker`, plus `LICENSE`, `LICENSE-DATA`, `NOTICE`, and `README.md`, and its
+`.sha256` checksum). Install it by downloading the matching asset from the release, verifying
+the checksum, and extracting it onto an ARM64 Android device (for example inside Termux).
+The Android build uses the same default features as desktop; there is no Android-reduced
+feature profile.
 
 ### Windows release
 
@@ -63,6 +93,9 @@ The image targets Linux amd64 (Linux aarch64 users should use the release binary
 it is published only after the release and all binary assets succeed. A container
 must bind `0.0.0.0` to be reachable through a published port.
 
+A Docker Hub mirror (`docker.io/zuli2021/zuli-proxybroker-extended`) is planned as a
+non-blocking copy of the canonical GHCR image. It never gates the canonical release path.
+
 ## Usage
 
 ```sh
@@ -75,8 +108,9 @@ proxybroker --provider-dir ./my-providers find --types HTTP   # bring your own p
 
 ## Rust Library
 
-Library-first: the CLI is a thin shell over a reusable API. The package is not
-published to crates.io; depend on the stable tag as a Git dependency:
+Library-first: the CLI is a thin shell over a reusable API. The package is prepared for
+crates.io publication as `zuli-proxybroker-extended` 1.1.0, but that submission has **not**
+occurred yet (owner-gated). Until it does, depend on the stable tag as a Git dependency:
 
 ```toml
 [dependencies]
@@ -121,10 +155,10 @@ TUI, MCP, and a rotating connector.
 > infrastructure. They must not be used for credentials, account logins,
 > payment information, private API tokens, or other sensitive traffic.
 
-v1.0.0 is the first stable release; the documented library API and CLI interface
-are compatibility contracts governed by Semantic Versioning. This stability
-declaration does not guarantee the availability, trustworthiness, or safety of
-third-party public proxies.
+v1.0.0 is the first stable release; v1.1.0 is the planned next release (distribution closure).
+The documented library API and CLI interface are compatibility contracts governed by Semantic
+Versioning. This stability declaration does not guarantee the availability, trustworthiness,
+or safety of third-party public proxies.
 
 ## Project & Provenance
 

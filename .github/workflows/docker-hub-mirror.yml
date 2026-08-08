@@ -1,0 +1,66 @@
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
+
+name: Docker Hub mirror
+
+# DIST-001: Docker Hub is a MIRROR ONLY of the canonical GHCR image. GHCR remains the
+# authoritative registry; the canonical release workflow never depends on this workflow, so a
+# Docker Hub outage or credential problem can never block a GitHub Release. This workflow runs
+# after a Release is published and copies the canonical image manifest (via buildx imagetools,
+# so the image identity is preserved, not rebuilt) to Docker Hub.
+#
+# The mirror is gated on the repository variable below. Until an owner configures it, the job
+# is skipped (never failed). The required owner-provided credentials are:
+#   - Repository variable  DOCKERHUB_MIRROR_ENABLED = true
+#   - Repository secret    DOCKERHUB_USERNAME       (Docker Hub account, e.g. zuli2021)
+#   - Repository secret    DOCKERHUB_TOKEN          (Docker Hub access token, read+write)
+# If the variable is enabled but the secrets are absent, the mirror step skips itself and the
+# workflow stays green — Docker Hub is non-blocking by construction.
+#
+# Version-tag behaviour mirrors the canonical release: the semver tag (leading `v` stripped,
+# e.g. v1.1.0 -> 1.1.0) always mirrors, and a stable release additionally mirrors `latest`.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    name: mirror GHCR image to Docker Hub
+    if: ${{ vars.DOCKERHUB_MIRROR_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      # The GitHub `secrets` context is not available in `if` conditions, so the credential
+      # guard is a shell check. Canonical image identity and version identity are preserved
+      # exactly: the Docker Hub repository mirrors the GitHub repository path
+      # (zuli2021/zuli-proxybroker-extended).
+      - name: Copy the canonical GHCR image to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GHCR_IMAGE: ghcr.io/${{ github.repository }}
+          DOCKERHUB_IMAGE: ${{ github.repository }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DOCKERHUB_USERNAME:-}" ] || [ -z "${DOCKERHUB_TOKEN:-}" ]; then
+            echo "::notice::Docker Hub credentials not configured; skipping mirror (non-blocking)."
+            exit 0
+          fi
+          version="${TAG_NAME#v}"
+          test -n "$version"
+          docker login docker.io \
+            --username "$DOCKERHUB_USERNAME" \
+            --password-stdin <<< "$DOCKERHUB_TOKEN"
+          docker buildx imagetools create \
+            --tag "$DOCKERHUB_IMAGE:$version" \
+            "$GHCR_IMAGE:$version"
+          if [ "$IS_PRERELEASE" != "true" ]; then
+            docker buildx imagetools create \
+              --tag "$DOCKERHUB_IMAGE:latest" \
+              "$GHCR_IMAGE:$version"
+          fi
+          printf 'Mirrored %s:%s to %s:%s\n' "$GHCR_IMAGE" "$version" "$DOCKERHUB_IMAGE" "$version"

@@ -5,8 +5,9 @@ name: Release
 
 # A pushed version tag is verified before an unpublished draft Release is created.
 # Binary archives and checksums are generated without network publication, uploaded
-# only while the Release is a verified draft, and checked as an exact fourteen-asset
-# set. GHCR must succeed before the draft is verified and published. Publication is
+# only while the Release is a verified draft, and checked as an exact sixteen-asset
+# set (seven desktop targets plus the dedicated aarch64-linux-android binary).
+# GHCR must succeed before the draft is verified and published. Publication is
 # the terminal Release mutation. Existing drafts or published Releases block normal
 # execution; partial failures preserve the draft for a separately governed recovery.
 # This ordering is compatible with future Immutable Releases, which are not yet enabled.
@@ -399,6 +400,120 @@ jobs:
                ] | length) == 1
             ' <<< "$release_json"
 
+  # Android is a canonical release binary for v1.1.0, but it is deliberately a DEDICATED job,
+  # not an entry inside the desktop `binaries` matrix. It uses the same default feature set as
+  # desktop (no --no-default-features, no Android-reduced profile), builds via
+  # scripts/build-android.sh (the single source of truth shared with Android CI), and uploads
+  # the same archive + SHA-256 pair shape as every desktop target.
+  android:
+    needs: [verify, create-draft-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          targets: aarch64-linux-android
+
+      # Current Android NDK LTS (Rust supports the most recent LTS NDK; r27d as of 2026-08-08).
+      # SHA-1 is the checksum Google publishes for NDK archives on the official download page.
+      - name: Install the Android NDK (current LTS)
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/android-ndk-r27d-linux.zip"
+          curl --fail --location --silent --show-error --proto '=https' --output "$archive" \
+            "https://dl.google.com/android/repository/android-ndk-r27d-linux.zip"
+          test "$(stat -c %s "$archive")" = '663956036'
+          printf '%s  %s\n' '22105e410cf29afcf163760cc95522b9fb981121' "$archive" | sha1sum -c -
+          unzip -q "$archive" -d "$RUNNER_TEMP"
+          ndk_dir="$RUNNER_TEMP/android-ndk-r27d"
+          test -d "$ndk_dir/toolchains/llvm/prebuilt"
+          echo "ANDROID_NDK_HOME=$ndk_dir" >> "$GITHUB_ENV"
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          key: aarch64-linux-android
+
+      - name: Build, package, and checksum the Android binary
+        id: android
+        run: bash scripts/build-android.sh "${{ needs.verify.outputs.tag }}"
+
+      - name: Upload the Android pair to the verified draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_ID: ${{ needs.create-draft-release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          base="proxybroker-$TAG-aarch64-linux-android"
+          archive="target/android-release/$base.tar.gz"
+          checksum="target/android-release/$base.sha256"
+          test -f "$archive" && test -s "$archive"
+          test -f "$checksum" && test -s "$checksum"
+          test "$(wc -l < "$checksum")" = '1'
+
+          release_json="$(
+            gh api "repos/$GH_REPO/releases/$RELEASE_ID"
+          )"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == true and
+              .published_at == null and
+              (([.assets[].name] | length) ==
+               ([.assets[].name] | unique | length))
+            ' <<< "$release_json"
+          existing_count="$(
+            jq \
+              --arg archive "$archive" \
+              --arg checksum "$checksum" '
+                [
+                  .assets[] |
+                  select(
+                    .name == $archive or
+                    .name == $checksum
+                  )
+                ] |
+                length
+              ' <<< "$release_json"
+          )"
+          test "$existing_count" = '0'
+
+          gh release upload \
+            "$TAG" \
+            "$archive" \
+            "$checksum" \
+            --repo "$GH_REPO"
+
+          release_json="$(
+            gh api "repos/$GH_REPO/releases/$RELEASE_ID"
+          )"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg tag "$TAG" \
+            --arg archive "$archive" \
+            --arg checksum "$checksum" '
+              .id == $release_id and
+              .tag_name == $tag and
+              .draft == true and
+              .published_at == null and
+              ([.assets[] |
+                select(.name == $archive) |
+                select(.state == "uploaded" and .size > 0)
+               ] | length) == 1 and
+              ([.assets[] |
+                select(.name == $checksum) |
+                select(.state == "uploaded" and .size > 0)
+               ] | length) == 1
+            ' <<< "$release_json"
+
   # GHCR publication is ordered after every binary leg. A stable tag alone produces
   # the additional latest image tag; a prerelease produces only its version tag.
   docker:
@@ -440,10 +555,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  # Verify the independent expected contract, asset metadata, and all seven SHA-256
-  # pairs without mutating the draft.
+  # Verify the independent expected contract, asset metadata, and all eight SHA-256
+  # pairs (seven desktop + Android) without mutating the draft.
   verify-draft-release:
-    needs: [verify, create-draft-release, binaries, docker]
+    needs: [verify, create-draft-release, binaries, docker, android]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -473,7 +588,7 @@ jobs:
               .draft == true and
               .prerelease == $prerelease and
               .published_at == null and
-              (.assets | length) == 14 and
+              (.assets | length) == 16 and
               (([.assets[].name] | length) ==
                ([.assets[].name] | unique | length)) and
               all(.assets[];
@@ -491,6 +606,7 @@ jobs:
             x86_64-apple-darwin
             aarch64-apple-darwin
             x86_64-pc-windows-msvc
+            aarch64-linux-android
           )
           : > "$expected_file"
           for target in "${targets[@]}"; do
@@ -503,8 +619,8 @@ jobs:
             printf '%s.sha256\n' "$base" >> "$expected_file"
           done
           LC_ALL=C sort -o "$expected_file" "$expected_file"
-          test "$(wc -l < "$expected_file")" = '14'
-          test "$(sort -u "$expected_file" | wc -l)" = '14'
+          test "$(wc -l < "$expected_file")" = '16'
+          test "$(sort -u "$expected_file" | wc -l)" = '16'
 
           jq -r '.assets[].name' "$release_file" |
             LC_ALL=C sort > "$actual_file"
@@ -539,12 +655,12 @@ jobs:
             )
             pair_count=$((pair_count + 1))
           done
-          test "$pair_count" = '7'
+          test "$pair_count" = '8'
 
   # The only publication mutation runs after every preceding job and is followed by
   # fresh identity, asset-set, and latest-state verification.
   publish-release:
-    needs: [verify, create-draft-release, binaries, docker, verify-draft-release]
+    needs: [verify, create-draft-release, binaries, docker, android, verify-draft-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -575,6 +691,7 @@ jobs:
             x86_64-apple-darwin
             aarch64-apple-darwin
             x86_64-pc-windows-msvc
+            aarch64-linux-android
           )
           : > "$expected_file"
           for target in "${targets[@]}"; do
@@ -598,7 +715,7 @@ jobs:
               .draft == true and
               .prerelease == $prerelease and
               .published_at == null and
-              (.assets | length) == 14 and
+              (.assets | length) == 16 and
               (([.assets[].name] | length) ==
                ([.assets[].name] | unique | length)) and
               all(.assets[]; .state == "uploaded" and .size > 0)
@@ -657,7 +774,7 @@ jobs:
               .draft == false and
               .prerelease == $prerelease and
               .published_at != null and
-              (.assets | length) == 14 and
+              (.assets | length) == 16 and
               (([.assets[].name] | length) ==
                ([.assets[].name] | unique | length)) and
               all(.assets[]; .state == "uploaded" and .size > 0)

@@ -3,10 +3,12 @@ See NOTICE for attribution and the statement of changes. -->
 
 # Installation
 
-Zuli ProxyBroker Extended is usable from a local source checkout today. It is **not** published to
-crates.io or docs.rs, and no public Zuli GitHub Release or GHCR image has been verified. The
-repository, installer, and image locations below describe the planned Zuli distribution after it is
-publicly available.
+Zuli ProxyBroker Extended v1.0.0 is published as a public GitHub Release with Linux, macOS,
+and Windows binaries plus SHA-256 checksums, and GHCR is the canonical container registry.
+The next release, **v1.1.0 (distribution closure)**, is being prepared: it adds an Android
+(`aarch64-linux-android`) release binary, prepares crates.io publication, and adds a
+non-blocking Docker Hub mirror. None of the v1.1.0 artifacts or submissions exist yet —
+v1.1.0 is not published to crates.io and no v1.1.0 release or image has been produced.
 
 ## Build from source
 
@@ -36,15 +38,17 @@ The executable remains `proxybroker` at `target/release/proxybroker`. The Cargo 
 
 ## Rust dependency
 
-Until a separately approved crates.io publication exists, depend on the planned repository source:
+The v1.1.0 crate package is prepared for crates.io publication as
+`zuli-proxybroker-extended`, but publication has **not** occurred (owner-gated, preceded by a
+collision check immediately before upload). Until it does, depend on the stable tag as a Git
+dependency:
 
 ```toml
 [dependencies]
-proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git" }
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v1.0.0" }
 ```
 
-No Zuli crates.io package currently exists. After the first release, consumers should pin a tag or
-commit rather than relying on an unpinned branch.
+Pin a tag or commit rather than relying on an unpinned branch.
 
 ## Prebuilt static binary (`install.sh`)
 
@@ -71,12 +75,23 @@ under `PROXYBROKER_DOC_DIR`. Supported installer targets are `x86_64`/`aarch64` 
 `x86_64`/`aarch64` Apple Darwin. Windows is not supported by `install.sh`.
 
 The Linux release binary is intended to be a fully static musl build, with the geo database and
-provider list embedded. No release asset has been verified publicly yet.
+provider list embedded.
+
+## Android (`aarch64-linux-android`)
+
+v1.1.0 adds a canonical Android release binary: `proxybroker-<tag>-aarch64-linux-android.tar.gz`
+(executable `proxybroker`, plus `LICENSE`, `LICENSE-DATA`, `NOTICE`, `README.md`) and its
+`.sha256` checksum, built with the **same default feature set** as desktop (`cli`, `server`,
+`geo`, `geo-bundled`) in a dedicated Android CI workflow. Install by downloading the matching
+asset from the release, verifying the SHA-256, and extracting it on an ARM64 Android device
+(for example inside Termux). Android is not covered by `install.sh` (Linux/macOS only).
 
 ## Docker (`FROM scratch`)
 
-The future GHCR image path is `ghcr.io/zuli2021/zuli-proxybroker-extended`. No public image,
-multi-architecture support, or Docker Desktop/WSL validation is claimed here.
+The canonical image path is `ghcr.io/zuli2021/zuli-proxybroker-extended`. GHCR is the
+authoritative registry; a Docker Hub mirror
+(`docker.io/zuli2021/zuli-proxybroker-extended`) is planned for v1.1.0 as a non-blocking copy
+and never gates the canonical release path.
 
 After a verified tagged release publishes an image, replace `<tag>` with the release version:
 

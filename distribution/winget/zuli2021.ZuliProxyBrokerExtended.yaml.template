@@ -1,0 +1,35 @@
+# Zuli ProxyBroker Extended @VERSION@ — WinGet manifest (DIST-001).
+# Rendered from distribution/winget/zuli2021.ZuliProxyBrokerExtended.yaml.template by
+# distribution/materialize.sh. Final exact registry identifiers are owner-verified before
+# the first submission; final submission is a PR to microsoft/winget-pkgs.
+PackageIdentifier: zuli2021.ZuliProxyBrokerExtended
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: zuli2021
+PublisherUrl: https://github.com/zuli2021/zuli-proxybroker-extended
+PublisherSupportUrl: https://github.com/zuli2021/zuli-proxybroker-extended/issues
+PackageName: Zuli ProxyBroker Extended
+PackageUrl: https://github.com/zuli2021/zuli-proxybroker-extended
+License: Apache-2.0
+LicenseUrl: https://github.com/zuli2021/zuli-proxybroker-extended/blob/@TAG@/LICENSE
+ShortDescription: Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies.
+Description: >-
+  Zuli ProxyBroker Extended is a Rust CLI and library that discovers public proxies,
+  validates and classifies them by anonymity, and serves a rotating proxy endpoint,
+  with offline DB-IP country lookup. The executable is `proxybroker`.
+Moniker: proxybroker
+Tags:
+  - proxy
+  - socks
+  - http
+  - scraper
+  - checker
+ReleaseNotesUrl: https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/@TAG@
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/@TAG@/proxybroker-@TAG@-x86_64-pc-windows-msvc.zip
+    InstallerSha256: @WINDOWS_ZIP_SHA256@
+    Scope: user
+ManifestType: singleton
+ManifestVersion: 1.9.0

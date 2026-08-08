@@ -1,0 +1,31 @@
+# Zuli ProxyBroker Extended @VERSION@ — Termux build.sh (DIST-001).
+# Rendered from distribution/termux/build.sh.template by distribution/materialize.sh.
+# Final exact registry identifiers are owner-verified before the first submission;
+# final submission is a PR to termux/termux-packages.
+TERMUX_PKG_HOMEPAGE=https://github.com/zuli2021/zuli-proxybroker-extended
+TERMUX_PKG_DESCRIPTION="Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies"
+TERMUX_PKG_LICENSE="Apache-2.0"
+TERMUX_PKG_MAINTAINER="@TODO replace with a Termux maintainer before submission"
+TERMUX_PKG_VERSION=@VERSION@
+TERMUX_PKG_REVISION=1
+TERMUX_PKG_SRCURL="https://github.com/zuli2021/zuli-proxybroker-extended/archive/refs/tags/v${TERMUX_PKG_VERSION}.tar.gz"
+TERMUX_PKG_SHA256="@SOURCE_TARBALL_SHA256@"
+TERMUX_PKG_BUILD_IN_SRC=true
+
+termux_step_pre_configure() {
+	termux_setup_rust
+}
+
+termux_step_make() {
+	# Build the real `proxybroker` executable with the default feature set (geo data is
+	# embedded, so no runtime files are needed).
+	cargo build --release --locked --target "$CARGO_TARGET_NAME"
+}
+
+termux_step_make_install() {
+	local target_dir="target/$CARGO_TARGET_NAME/release"
+	install -Dm755 "$target_dir/proxybroker" "$TERMUX_PREFIX/bin/proxybroker"
+	install -Dm644 LICENSE "$TERMUX_PREFIX/share/licenses/$TERMUX_PKG_NAME/LICENSE"
+	install -Dm644 LICENSE-DATA "$TERMUX_PREFIX/share/licenses/$TERMUX_PKG_NAME/LICENSE-DATA"
+	install -Dm644 NOTICE "$TERMUX_PREFIX/share/licenses/$TERMUX_PKG_NAME/NOTICE"
+}
