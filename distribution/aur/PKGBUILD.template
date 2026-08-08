@@ -18,6 +18,8 @@ sha256sums=('@SOURCE_TARBALL_SHA256@')
 
 build() {
 	cd "$srcdir/zuli-proxybroker-extended-$pkgver"
+	# ring 0.17.14 needs fat LTO objects under Arch's default LTO build flags.
+	CFLAGS+=" -ffat-lto-objects"
 	cargo build --release --locked
 }
 
