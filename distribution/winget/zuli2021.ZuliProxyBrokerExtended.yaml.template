@@ -25,11 +25,17 @@ Tags:
   - scraper
   - checker
 ReleaseNotesUrl: https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/@TAG@
+Commands:
+  - proxybroker
 Installers:
   - Architecture: x64
     InstallerType: zip
     InstallerUrl: https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/@TAG@/proxybroker-@TAG@-x86_64-pc-windows-msvc.zip
     InstallerSha256: @WINDOWS_ZIP_SHA256@
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: proxybroker.exe
+        PortableCommandAlias: proxybroker
     Scope: user
 ManifestType: singleton
-ManifestVersion: 1.9.0
+ManifestVersion: 1.12.0

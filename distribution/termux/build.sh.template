@@ -5,9 +5,8 @@
 TERMUX_PKG_HOMEPAGE=https://github.com/zuli2021/zuli-proxybroker-extended
 TERMUX_PKG_DESCRIPTION="Find, validate, and serve rotating public HTTP(S) and SOCKS4/5 proxies"
 TERMUX_PKG_LICENSE="Apache-2.0"
-TERMUX_PKG_MAINTAINER="@TODO replace with a Termux maintainer before submission"
+TERMUX_PKG_MAINTAINER="zuli2021"
 TERMUX_PKG_VERSION=@VERSION@
-TERMUX_PKG_REVISION=1
 TERMUX_PKG_SRCURL="https://github.com/zuli2021/zuli-proxybroker-extended/archive/refs/tags/v${TERMUX_PKG_VERSION}.tar.gz"
 TERMUX_PKG_SHA256="@SOURCE_TARBALL_SHA256@"
 TERMUX_PKG_BUILD_IN_SRC=true
