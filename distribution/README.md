@@ -10,8 +10,8 @@ Canonical distribution surfaces (unchanged by this folder):
 - **GitHub Releases** — the canonical binary assets; the **v1.1.0 Release is published** with
   16 SHA-256-verified assets (Linux, macOS, Windows, and `aarch64-linux-android`).
 - **GHCR** — the canonical container registry; `1.1.0` and `latest` images are published.
-- **crates.io** — prepared for v1.1.0 (`zuli-proxybroker-extended`); publication has **not**
-  occurred and remains owner-gated.
+- **crates.io** — `zuli-proxybroker-extended` 1.1.0 is published; its registry checksum is
+  `cbb69f6a9b4cd45160e51acd4267d200507d2c2f73030e7703ba3f6919c8f10c`.
 - **Docker Hub** — mirror only, non-blocking (`.github/workflows/docker-hub-mirror.yml`);
   **not yet published/configured**.
 
@@ -102,8 +102,7 @@ Notes:
 
 ## Owner-gated actions (not performed here)
 
-- crates.io publication of `zuli-proxybroker-extended` 1.1.0 (preceded by a fresh read-only
-  collision check immediately before the actual upload; not yet performed).
+- Future crates.io version publications remain owner-gated.
 - Configuring Docker Hub secrets/variables and enabling the mirror (not yet configured).
 - Submitting WinGet/Scoop/Homebrew/Chocolatey/AUR/Nixpkgs/Termux packages (nothing submitted).
 - Final per-ecosystem collision/identity checks immediately before the first submission of each.

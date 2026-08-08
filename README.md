@@ -32,10 +32,9 @@ includes offline DB-IP country lookup and optional Redis-backed storage.
 - **Android**: the `aarch64-linux-android` binary is built with the same default feature set as
   desktop (`cli`, `server`, `geo`, `geo-bundled`). It is a canonical release asset, built and
   validated in a dedicated Android CI workflow.
-- **crates.io**: the package is prepared for crates.io publication as
-  `zuli-proxybroker-extended` 1.1.0. Publication has **not** occurred yet; the actual submission
-  remains owner-gated and is preceded by a fresh collision check immediately before upload. Until
-  it happens, depend on the stable tag as a Git dependency (below).
+- **crates.io**: `zuli-proxybroker-extended` 1.1.0 is published on crates.io. The package
+  provides the `proxybroker` Rust library and CLI and carries the same Apache-2.0 code license,
+  required NOTICE provenance, and separately licensed bundled DB-IP data as the canonical release.
 - **Docker Hub**: planned as a **mirror only** of the canonical GHCR image, non-blocking and
   outside the canonical release path.
 - **Package managers**: repository-side preparation for WinGet, Scoop, Homebrew, Chocolatey,
@@ -51,6 +50,16 @@ Install the latest supported Linux or macOS binary (SHA-256 verified, fail-close
 ```sh
 curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/main/install.sh | sh
 PROXYBROKER_VERSION=v1.1.0   # optional: select this release explicitly
+```
+
+### Install from crates.io
+
+The published crates.io package is also installable with Cargo (package name
+`zuli-proxybroker-extended`; the installed executable is `proxybroker`):
+
+```sh
+cargo install zuli-proxybroker-extended --version 1.1.0 --locked
+proxybroker --version
 ```
 
 ### Android release
@@ -109,9 +118,15 @@ proxybroker --provider-dir ./my-providers find --types HTTP   # bring your own p
 
 ## Rust Library
 
-Library-first: the CLI is a thin shell over a reusable API. The package is prepared for
-crates.io publication as `zuli-proxybroker-extended` 1.1.0, but that submission has **not**
-occurred yet (owner-gated). Until it does, depend on the stable tag as a Git dependency:
+Library-first: the CLI is a thin shell over a reusable API. The stable Rust package is published
+on crates.io as `zuli-proxybroker-extended` 1.1.0. The library crate name remains `proxybroker`.
+
+```toml
+[dependencies]
+proxybroker = { package = "zuli-proxybroker-extended", version = "1.1.0" }
+```
+
+To pin directly to the canonical GitHub release tag instead:
 
 ```toml
 [dependencies]
