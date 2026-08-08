@@ -171,7 +171,7 @@ jobs:
             cat .SRCINFO
             echo "===== end .SRCINFO ====="
             grep -q "^pkgbase = zuli-proxybroker-extended$" .SRCINFO
-            grep -q "^pkgver = 1.1.0$" .SRCINFO
+            grep -q "pkgver = 1.1.0" .SRCINFO
             su builder -c "makepkg --noconfirm --cleanbuild"
             ls -la *.pkg.tar.*
           '
@@ -208,6 +208,7 @@ jobs:
         run: |
           set -euo pipefail
           git clone --depth 1 https://github.com/termux/termux-packages.git "$RUNNER_TEMP/termux/termux-packages"
+          mkdir -p "$RUNNER_TEMP/termux/termux-packages/packages/zuli-proxybroker-extended"
           cp "$RUNNER_TEMP/termux/packages/zuli-proxybroker-extended/build.sh" \
             "$RUNNER_TEMP/termux/termux-packages/packages/zuli-proxybroker-extended/build.sh"
           echo "packages/zuli-proxybroker-extended/build.sh staged locally (no upstream modification)"
