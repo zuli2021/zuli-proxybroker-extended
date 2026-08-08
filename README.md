@@ -10,23 +10,24 @@
 and classifies them by anonymity, and serves a rotating proxy endpoint. It
 includes offline DB-IP country lookup and optional Redis-backed storage.
 
-[Download v1.0.0](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.0.0) · [Documentation](https://zuli2021.github.io/zuli-proxybroker-extended/) · [Installation](#installation)
+> ⭐ If Zuli ProxyBroker Extended saves you time, consider starring the repository — it helps other developers discover the project.
+
+[Download v1.1.0](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.1.0) · [Documentation](https://zuli2021.github.io/zuli-proxybroker-extended/) · [Installation](#installation)
 
 ## Highlights
 
 - Discover and validate public HTTP/HTTPS, SOCKS4, and SOCKS5 proxies.
 - Check, classify, and select proxies with offline country lookup.
 - Serve a rotating proxy endpoint or embed the Rust library directly.
-- Stable v1.0.0 release assets for Linux, macOS, and Windows; container image on GHCR.
-- v1.1.0 (next release) is the **distribution closure**: it adds an `aarch64-linux-android`
-  release binary with the full default feature set, prepares crates.io publication, and
-  provides the repository-side material for a non-blocking Docker Hub mirror and downstream
-  package-manager distribution.
+- v1.1.0 is the current distribution-closure release: SHA-256-verified binaries for Linux,
+  macOS, Windows, and ARM64 Android (`aarch64-linux-android`), plus the canonical GHCR image.
+- Every release target ships paired with a SHA-256 checksum; the `LICENSE`, `LICENSE-DATA`,
+  and `NOTICE` notices travel with every archive.
 
 ## Distribution state
 
-- **GitHub Releases** and **GHCR** remain the canonical v1.1.0 distribution surfaces.
-  v1.1.0 will ship Linux, macOS, Windows, and Android binaries with SHA-256 checksums and the
+- **GitHub Releases** and **GHCR** are the canonical v1.1.0 distribution surfaces.
+  v1.1.0 ships Linux, macOS, Windows, and Android binaries with SHA-256 checksums and the
   `LICENSE`, `LICENSE-DATA`, and `NOTICE` notices.
 - **Android**: the `aarch64-linux-android` binary is built with the same default feature set as
   desktop (`cli`, `server`, `geo`, `geo-bundled`). It is a canonical release asset, built and
@@ -49,12 +50,12 @@ Install the latest supported Linux or macOS binary (SHA-256 verified, fail-close
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/zuli2021/zuli-proxybroker-extended/main/install.sh | sh
-PROXYBROKER_VERSION=v1.0.0   # optional: select this release explicitly
+PROXYBROKER_VERSION=v1.1.0   # optional: select this release explicitly
 ```
 
 ### Android release
 
-v1.1.0 adds a canonical `proxybroker-<tag>-aarch64-linux-android.tar.gz` release asset
+v1.1.0 ships a canonical `proxybroker-<tag>-aarch64-linux-android.tar.gz` release asset
 (executable `proxybroker`, plus `LICENSE`, `LICENSE-DATA`, `NOTICE`, and `README.md`, and its
 `.sha256` checksum). Install it by downloading the matching asset from the release, verifying
 the checksum, and extracting it onto an ARM64 Android device (for example inside Termux).
@@ -64,8 +65,8 @@ feature profile.
 ### Windows release
 
 Download the matching `x86_64-pc-windows-msvc` asset from the
-[v1.0.0 release](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.0.0),
-verify its `.sha256`, and extract it. v1.0.0's x86_64 Windows release was manually
+[v1.1.0 release](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.1.0),
+verify its `.sha256`, and extract it. The v1.0.0 x86_64 Windows release was manually
 validated (2026-08-08) on a supervised Windows host, including checksum
 verification, CLI execution, bounded live proxy discovery/validation, and a local
 rotating-proxy request. This does not claim every Windows version, architecture,
@@ -86,7 +87,7 @@ cargo install --path . --locked   # optional, installed name stays "proxybroker"
 ### Docker
 
 ```sh
-docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:1.0.0 serve --host 0.0.0.0:8888
+docker run --rm -p 8888:8888 ghcr.io/zuli2021/zuli-proxybroker-extended:1.1.0 serve --host 0.0.0.0:8888
 ```
 
 The image targets Linux amd64 (Linux aarch64 users should use the release binary);
@@ -114,7 +115,7 @@ occurred yet (owner-gated). Until it does, depend on the stable tag as a Git dep
 
 ```toml
 [dependencies]
-proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v1.0.0" }
+proxybroker = { package = "zuli-proxybroker-extended", git = "https://github.com/zuli2021/zuli-proxybroker-extended.git", tag = "v1.1.0" }
 ```
 
 ```rust
@@ -155,7 +156,7 @@ TUI, MCP, and a rotating connector.
 > infrastructure. They must not be used for credentials, account logins,
 > payment information, private API tokens, or other sensitive traffic.
 
-v1.0.0 is the first stable release; v1.1.0 is the planned next release (distribution closure).
+v1.0.0 is the first stable release; v1.1.0 is the current release (distribution closure).
 The documented library API and CLI interface are compatibility contracts governed by Semantic
 Versioning. This stability declaration does not guarantee the availability, trustworthiness,
 or safety of third-party public proxies.

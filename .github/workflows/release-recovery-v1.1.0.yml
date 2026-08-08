@@ -14,12 +14,14 @@ env:
   TAG: v1.1.0
   RELEASE_ID: "367111429"
   EXPECTED_COMMIT: 2a64a884d41c21fffccb29f1479fb87ddb77053b
+  RELEASE_NAME: "Zuli ProxyBroker Extended v1.1.0 — Rust Proxy Scraper, Checker & Rotating Proxy Server"
+  RELEASE_BODY_MARKER: "Zuli ProxyBroker Extended v1.1.0 is a fast Rust proxy scraper"
 
 jobs:
   verify-draft:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     outputs:
       asset_contract_sha256: ${{ steps.verify.outputs.asset_contract_sha256 }}
     steps:
@@ -60,10 +62,13 @@ jobs:
 
           jq -e \
             --argjson release_id "$RELEASE_ID" \
-            --arg tag "$TAG" '
+            --arg tag "$TAG" \
+            --arg release_name "$RELEASE_NAME" \
+            --arg body_marker "$RELEASE_BODY_MARKER" '
               .id == $release_id and
               .tag_name == $tag and
-              .name == $tag and
+              .name == $release_name and
+              ((.body // "") | startswith($body_marker)) and
               .draft == true and
               .prerelease == false and
               .published_at == null and
@@ -282,10 +287,13 @@ jobs:
 
           jq -e \
             --argjson release_id "$RELEASE_ID" \
-            --arg tag "$TAG" '
+            --arg tag "$TAG" \
+            --arg release_name "$RELEASE_NAME" \
+            --arg body_marker "$RELEASE_BODY_MARKER" '
               .id == $release_id and
               .tag_name == $tag and
-              .name == $tag and
+              .name == $release_name and
+              ((.body // "") | startswith($body_marker)) and
               .draft == true and
               .prerelease == false and
               .published_at == null and
@@ -352,10 +360,13 @@ jobs:
 
           jq -e \
             --argjson release_id "$RELEASE_ID" \
-            --arg tag "$TAG" '
+            --arg tag "$TAG" \
+            --arg release_name "$RELEASE_NAME" \
+            --arg body_marker "$RELEASE_BODY_MARKER" '
               .id == $release_id and
               .tag_name == $tag and
-              .name == $tag and
+              .name == $release_name and
+              ((.body // "") | startswith($body_marker)) and
               .draft == false and
               .prerelease == false and
               .published_at != null and
