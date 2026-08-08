@@ -219,12 +219,16 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP/termux/termux-packages"
           ./scripts/run-docker.sh ./build-package.sh -f -I zuli-proxybroker-extended
-          ls -la debs/zuli-proxybroker-extended* 2>/dev/null || ls -la "$RUNNER_TEMP/termux/termux-packages/debs/" | grep zuli
+          deb="$(find "$RUNNER_TEMP/termux" -name 'zuli-proxybroker-extended_*.deb' | head -1)"
+          test -n "$deb" || { echo "no .deb produced"; exit 1; }
+          echo "deb found: $deb"
+          echo "deb=$deb" >> "$GITHUB_ENV"
 
       - name: Inspect generated Termux .deb
         run: |
           set -euo pipefail
-          deb="$(ls "$RUNNER_TEMP/termux/termux-packages"/debs/zuli-proxybroker-extended_*.deb | head -1)"
+          deb="$DEB"
+          test -n "$deb" && test -f "$deb"
           echo "deb: $deb"
           extract="$RUNNER_TEMP/termux/extracted"
           mkdir -p "$extract"
