@@ -91,7 +91,7 @@ jobs:
           $out = & proxybroker --version
           Write-Host $out
           if ($out -notmatch 'IP Geolocation by DB-IP') { throw "unexpected proxybroker --version output" }
-          winget uninstall --id zuli2021.ZuliProxyBrokerExtended --disable-interactivity
+          winget uninstall --id zuli2021.ZuliProxyBrokerExtended --manifest "$env:RUNNER_TEMP\rendered\winget\zuli2021.ZuliProxyBrokerExtended.yaml" --disable-interactivity
           winget settings --disable LocalManifestFiles
 
       - name: Ensure Chocolatey is available
@@ -227,8 +227,8 @@ jobs:
       - name: Inspect generated Termux .deb
         run: |
           set -euo pipefail
-          deb="$DEB"
-          test -n "$deb" && test -f "$deb"
+          deb="${deb:?missing DEB env}"
+          test -f "$deb"
           echo "deb: $deb"
           extract="$RUNNER_TEMP/termux/extracted"
           mkdir -p "$extract"

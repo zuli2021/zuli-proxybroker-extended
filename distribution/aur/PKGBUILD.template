@@ -18,9 +18,6 @@ sha256sums=('@SOURCE_TARBALL_SHA256@')
 
 build() {
 	cd "$srcdir/zuli-proxybroker-extended-$pkgver"
-	# ring 0.17.14 links with undefined p256 symbols under Arch's default lld
-	# (validated in the DIST-001 native AUR build); force the GNU bfd linker.
-	export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-fuse-ld=bfd"
 	cargo build --release --locked
 }
 
