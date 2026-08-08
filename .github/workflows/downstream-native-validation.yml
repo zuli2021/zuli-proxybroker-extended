@@ -1,0 +1,239 @@
+# Modified by Zuli2021 in 2026 for Zuli ProxyBroker Extended.
+# See NOTICE for attribution and the statement of changes.
+
+name: Downstream Native Validation
+
+# Temporary, manual-dispatch-only native validation for the DIST-001 downstream package
+# manifests (WinGet, Chocolatey, AUR, Termux). Runs inside disposable GitHub-hosted runners
+# and containers. Publishes/submits NOTHING: no push trigger, no secrets, no write
+# permissions, no registry login, no package-manager submission, no external upload.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: downstream-native-validation
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: v1.1.0
+  VERSION: 1.1.0
+  WINDOWS_ASSET: proxybroker-v1.1.0-x86_64-pc-windows-msvc.zip
+  WINDOWS_ZIP_SHA256: 498fe40e8881538fe9ec8b99a9b5e3a07ada163ae965159fd3919c982e2dfd5e
+  SOURCE_TARBALL_SHA256: 114531fa90fb329b68473881ff65b3da9b500083036a8380c8f8ed1b3887cc6e
+
+jobs:
+  windows-native:
+    name: WinGet + Chocolatey native validation
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Download and verify the canonical Windows asset
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP $env:WINDOWS_ASSET
+          Invoke-WebRequest -Uri "https://github.com/zuli2021/zuli-proxybroker-extended/releases/download/$env:TAG/$env:WINDOWS_ASSET" -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          Write-Host "computed SHA-256: $hash"
+          if ($hash -ne $env:WINDOWS_ZIP_SHA256) { throw "Windows asset SHA-256 mismatch" }
+          Write-Host "Windows asset SHA-256 verified"
+
+      - name: Render WinGet and Chocolatey manifests from templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rendered/winget" "$RUNNER_TEMP/rendered/choco/tools"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@WINDOWS_ZIP_SHA256@/$WINDOWS_ZIP_SHA256/g" \
+            distribution/winget/zuli2021.ZuliProxyBrokerExtended.yaml.template \
+            > "$RUNNER_TEMP/rendered/winget/zuli2021.ZuliProxyBrokerExtended.yaml"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@WINDOWS_ZIP_SHA256@/$WINDOWS_ZIP_SHA256/g" \
+            distribution/chocolatey/zuli-proxybroker-extended.nuspec.template \
+            > "$RUNNER_TEMP/rendered/choco/zuli-proxybroker-extended.nuspec"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@WINDOWS_ZIP_SHA256@/$WINDOWS_ZIP_SHA256/g" \
+            distribution/chocolatey/tools/chocolateyinstall.ps1.template \
+            > "$RUNNER_TEMP/rendered/choco/tools/chocolateyinstall.ps1"
+          ls -la "$RUNNER_TEMP/rendered/winget" "$RUNNER_TEMP/rendered/choco" "$RUNNER_TEMP/rendered/choco/tools"
+
+      - name: Ensure WinGet is available
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          try { $v = (winget --version 2>$null); Write-Host "winget present: $v" }
+          catch {
+            Write-Host "winget not present; bootstrapping Microsoft.WinGet.Client"
+            Install-PackageProvider -Name NuGet -Force | Out-Null
+            Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
+            Import-Module Microsoft.WinGet.Client
+            Repair-WinGetPackageManager -Force -Latest
+          }
+          Write-Host "winget version: $(winget --version)"
+
+      - name: WinGet validate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          winget validate --manifest "$env:RUNNER_TEMP\rendered\winget\zuli2021.ZuliProxyBrokerExtended.yaml" --disable-interactivity
+
+      - name: WinGet local manifest install + run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          winget settings --enable LocalManifestFiles
+          winget install --manifest "$env:RUNNER_TEMP\rendered\winget\zuli2021.ZuliProxyBrokerExtended.yaml" --accept-package-agreements --accept-source-agreements --disable-interactivity
+          $cmd = Get-Command proxybroker -ErrorAction Stop
+          Write-Host "proxybroker at: $($cmd.Source)"
+          $out = & proxybroker --version
+          Write-Host $out
+          if ($out -notmatch 'IP Geolocation by DB-IP') { throw "unexpected proxybroker --version output" }
+          winget uninstall --id zuli2021.ZuliProxyBrokerExtended --disable-interactivity
+          winget settings --disable LocalManifestFiles
+
+      - name: Ensure Chocolatey is available
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $choco = Get-Command choco -ErrorAction SilentlyContinue
+          if (-not $choco) {
+            Write-Host "choco not present; bootstrapping official Chocolatey installer"
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          }
+          & choco --version
+
+      - name: Chocolatey pack (local)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgDir = Join-Path $env:RUNNER_TEMP "choco-package"
+          New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
+          & choco pack "$env:RUNNER_TEMP\rendered\choco\zuli-proxybroker-extended.nuspec" --outputdirectory $pkgDir
+          $nupkg = Get-ChildItem $pkgDir -Filter 'zuli-proxybroker-extended.1.1.0.nupkg'
+          if (-not $nupkg) { throw "expected nupkg not produced" }
+          Write-Host "nupkg: $($nupkg.FullName)"
+          $list = & choco list --local-only --exact zuli-proxybroker-extended 2>$null
+          # Inspect contents: must contain nuspec + tools/chocolateyinstall.ps1, no embedded exe
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($nupkg.FullName)
+          try {
+            $names = $zip.Entries | ForEach-Object { $_.FullName }
+            Write-Host "nupkg entries:"; $names
+            if ($names -notcontains 'tools/chocolateyinstall.ps1') { throw "missing tools/chocolateyinstall.ps1" }
+            if ($names | Where-Object { $_ -match 'proxybroker\.exe$' }) { throw "package embeds a binary (not allowed)" }
+          } finally { $zip.Dispose() }
+
+      - name: Chocolatey local install + run + uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkgDir = Join-Path $env:RUNNER_TEMP "choco-package"
+          & choco install zuli-proxybroker-extended --version 1.1.0 --source $pkgDir -y --no-progress
+          $cmd = Get-Command proxybroker -ErrorAction Stop
+          Write-Host "proxybroker at: $($cmd.Source)"
+          $out = & proxybroker --version
+          Write-Host $out
+          if ($out -notmatch 'IP Geolocation by DB-IP') { throw "unexpected proxybroker --version output" }
+          & choco uninstall zuli-proxybroker-extended -y --no-progress
+
+  aur-native:
+    name: AUR native validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Render AUR PKGBUILD
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/aur"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@TAG@/$TAG/g" -e "s/@SOURCE_TARBALL_SHA256@/$SOURCE_TARBALL_SHA256/g" \
+            distribution/aur/PKGBUILD.template > "$RUNNER_TEMP/aur/PKGBUILD"
+          bash -n "$RUNNER_TEMP/aur/PKGBUILD"
+          echo "PKGBUILD rendered and syntactically valid"
+
+      - name: Build in ephemeral Arch container (non-root)
+        run: |
+          set -euo pipefail
+          docker run --rm --workdir /work -v "$RUNNER_TEMP/aur:/work" archlinux:base-devel bash -c '
+            set -euo pipefail
+            pacman -Sy --noconfirm --needed base-devel git rust >/dev/null
+            useradd -m -s /bin/bash builder
+            chown -R builder:builder /work
+            cd /work
+            su builder -c "makepkg --printsrcinfo > .SRCINFO"
+            echo "===== .SRCINFO ====="
+            cat .SRCINFO
+            echo "===== end .SRCINFO ====="
+            grep -q "^pkgbase = zuli-proxybroker-extended$" .SRCINFO
+            grep -q "^pkgver = 1.1.0$" .SRCINFO
+            su builder -c "makepkg --noconfirm --cleanbuild"
+            ls -la *.pkg.tar.*
+          '
+
+      - name: Inspect AUR package archive
+        run: |
+          set -euo pipefail
+          docker run --rm --workdir /work -v "$RUNNER_TEMP/aur:/work" archlinux:base-devel bash -c '
+            set -euo pipefail
+            pkg="$(ls /work/*.pkg.tar.* | head -1)"
+            echo "package: $pkg"
+            tar -tf "$pkg" | grep -E "usr/bin/proxybroker$" || { echo "MISSING /usr/bin/proxybroker"; exit 1; }
+            tar -tf "$pkg" | grep -E "usr/share/licenses/zuli-proxybroker-extended/(LICENSE|LICENSE-DATA|NOTICE)$" || { echo "MISSING license/notice files"; exit 1; }
+            echo "AUR package contents OK"
+          '
+
+  termux-native:
+    name: Termux native validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Render Termux build.sh
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/termux/packages/zuli-proxybroker-extended"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@SOURCE_TARBALL_SHA256@/$SOURCE_TARBALL_SHA256/g" \
+            distribution/termux/build.sh.template > "$RUNNER_TEMP/termux/packages/zuli-proxybroker-extended/build.sh"
+          bash -n "$RUNNER_TEMP/termux/packages/zuli-proxybroker-extended/build.sh"
+          echo "Termux build.sh rendered and syntactically valid"
+
+      - name: Clone official termux-packages (read-only)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/termux/termux-packages.git "$RUNNER_TEMP/termux/termux-packages"
+          cp "$RUNNER_TEMP/termux/packages/zuli-proxybroker-extended/build.sh" \
+            "$RUNNER_TEMP/termux/termux-packages/packages/zuli-proxybroker-extended/build.sh"
+          echo "packages/zuli-proxybroker-extended/build.sh staged locally (no upstream modification)"
+          git -C "$RUNNER_TEMP/termux/termux-packages" rev-parse HEAD
+
+      - name: Official Termux Docker build (aarch64)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/termux/termux-packages"
+          ./scripts/run-docker.sh ./build-package.sh -f -I zuli-proxybroker-extended
+          ls -la debs/zuli-proxybroker-extended* 2>/dev/null || ls -la "$RUNNER_TEMP/termux/termux-packages/debs/" | grep zuli
+
+      - name: Inspect generated Termux .deb
+        run: |
+          set -euo pipefail
+          deb="$(ls "$RUNNER_TEMP/termux/termux-packages"/debs/zuli-proxybroker-extended_*.deb | head -1)"
+          echo "deb: $deb"
+          extract="$RUNNER_TEMP/termux/extracted"
+          mkdir -p "$extract"
+          dpkg-deb -x "$deb" "$extract"
+          bin="$extract/data/data/com.termux/files/usr/bin/proxybroker"
+          test -f "$bin" || { echo "MISSING Termux proxybroker binary"; exit 1; }
+          echo "binary: $bin"
+          file "$bin"
+          readelf -h "$bin" | head -12
+          test -f "$extract/data/data/com.termux/files/usr/share/licenses/zuli-proxybroker-extended/LICENSE"
+          test -f "$extract/data/data/com.termux/files/usr/share/licenses/zuli-proxybroker-extended/LICENSE-DATA"
+          test -f "$extract/data/data/com.termux/files/usr/share/licenses/zuli-proxybroker-extended/NOTICE"
+          echo "Termux .deb contents verified"
