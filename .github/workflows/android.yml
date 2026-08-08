@@ -47,12 +47,12 @@ jobs:
       - name: Install the Android NDK (current LTS)
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/android-ndk-r${ANDROID_NDK_VERSION}-linux.zip"
+          archive="$RUNNER_TEMP/android-ndk-${ANDROID_NDK_VERSION}-linux.zip"
           curl --fail --location --silent --show-error --proto '=https' --output "$archive" "$ANDROID_NDK_URL"
           test "$(stat -c %s "$archive")" = "$ANDROID_NDK_ZIP"
           printf '%s  %s\n' "$ANDROID_NDK_SHA1" "$archive" | sha1sum -c -
           unzip -q "$archive" -d "$RUNNER_TEMP"
-          ndk_dir="$RUNNER_TEMP/android-ndk-r${ANDROID_NDK_VERSION}"
+          ndk_dir="$RUNNER_TEMP/android-ndk-${ANDROID_NDK_VERSION}"
           test -d "$ndk_dir/toolchains/llvm/prebuilt"
           echo "ANDROID_NDK_HOME=$ndk_dir" >> "$GITHUB_ENV"
 
