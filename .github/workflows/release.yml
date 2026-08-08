@@ -517,7 +517,7 @@ jobs:
   # GHCR publication is ordered after every binary leg. A stable tag alone produces
   # the additional latest image tag; a prerelease produces only its version tag.
   docker:
-    needs: [verify, create-draft-release, binaries]
+    needs: [verify, create-draft-release, binaries, android]
     runs-on: ubuntu-latest
     permissions:
       contents: read
