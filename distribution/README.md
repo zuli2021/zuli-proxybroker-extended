@@ -7,10 +7,13 @@ turns those decisions into manifests and the deterministic tooling that material
 
 Canonical distribution surfaces (unchanged by this folder):
 
-- **GitHub Releases** — the canonical binary assets (now including `aarch64-linux-android`).
-- **GHCR** — the canonical container registry.
-- **crates.io** — prepared for v1.1.0 (`zuli-proxybroker-extended`), publication owner-gated.
-- **Docker Hub** — mirror only, non-blocking (`.github/workflows/docker-hub-mirror.yml`).
+- **GitHub Releases** — the canonical binary assets; the **v1.1.0 Release is published** with
+  16 SHA-256-verified assets (Linux, macOS, Windows, and `aarch64-linux-android`).
+- **GHCR** — the canonical container registry; `1.1.0` and `latest` images are published.
+- **crates.io** — prepared for v1.1.0 (`zuli-proxybroker-extended`); publication has **not**
+  occurred and remains owner-gated.
+- **Docker Hub** — mirror only, non-blocking (`.github/workflows/docker-hub-mirror.yml`);
+  **not yet published/configured**.
 
 ## Identities
 
@@ -42,9 +45,11 @@ below are preparation, not frozen submissions.
 
 ## What is a template vs. a final manifest
 
-Everything under `distribution/` is a **template** (`*.template`) with placeholder tokens.
-Nothing here is a publishable manifest, because the v1.1.0 canonical release artifacts and
-their SHA-256 hashes do not exist yet. **No placeholder is ever presented as a final
+Everything under `distribution/` is a **template** (`*.template`) with placeholder tokens; the
+rendered, real-hash manifests live in the generated, git-ignored `distribution/out` directory
+and are **never committed**. The canonical v1.1.0 release artifacts now exist, so the templates
+can be materialized into publishable manifests with **real** SHA-256 hashes. `distribution/out`
+remains generated/ignored output material only. **No placeholder is ever presented as a final
 checksum.**
 
 | Token | Meaning |
@@ -58,15 +63,15 @@ checksum.**
 
 ## Materializing final manifests
 
-`materialize.sh` renders the templates deterministically from canonical v1.1.0 artifacts. It
-must be run after the canonical release artifacts exist, and is an owner action (the final
-pre-submission hashes cannot legitimately exist before the canonical assets are produced):
+`materialize.sh` renders the templates deterministically from the real canonical v1.1.0
+artifacts. It has been run successfully against the published v1.1.0 release; rendered output
+(no placeholders) is written to the git-ignored `distribution/out`:
 
 ```sh
-# With the canonical release assets present locally (or downloadable):
-./distribution/materialize.sh v1.1.0 --asset-dir /path/to/canonical-release-assets
+# Download and render from the real public v1.1.0 artifacts:
+./distribution/materialize.sh v1.1.0
 
-# Provide the Nixpkgs git-export SRI hash (requires nix):
+# Provide the Nixpkgs git-export SRI hash (requires nix tooling):
 ./distribution/materialize.sh v1.1.0 --nix-git-sri 'sha256-…'
 ```
 
@@ -79,10 +84,7 @@ Notes:
   sidecars the release workflow verifies).
 - `materialize.sh` refuses to run when any required hash is missing.
 
-## Validation performed pre-release
-
-The parts that can be validated before v1.1.0 exists are validated in this repository's CI and
-locally:
+## Validation performed
 
 - Workflow files pass `actionlint` and YAML parsing.
 - `scripts/build-android.sh` passes `shellcheck` and is exercised end-to-end for
@@ -90,17 +92,21 @@ locally:
 - Template syntax is validated: WinGet YAML structure, Scoop JSON, Homebrew formula
   (`ruby -c`), Chocolatey XML (nuspec) + PowerShell parse, AUR PKGBUILD (`bash -n`),
   Termux build.sh (`bash -n`).
-- `materialize.sh` renders a full set of manifests from sample hashes and re-validates the
-  rendered output structure.
+- `materialize.sh` has rendered the real v1.1.0 manifests and re-validates the rendered
+  output structure (YAML/JSON/XML parse, `bash -n`). The source-tarball and Windows-zip
+  SHA-256 hashes are cross-checked against independently downloaded canonical artifacts.
+- **Nixpkgs**: materialization of the `package.nix` requires `nix-prefetch-git` to compute the
+  `fetchFromGitHub` git-export SRI hash; if that tooling is unavailable on the host,
+  `NIX_GIT_SRI_TOOLING_UNAVAILABLE` is reported and the Nix template is not rendered (no
+  placeholder is fabricated).
 
 ## Owner-gated actions (not performed here)
 
-- Authorizing the implementation and pushing it to `main`.
-- Creating the `v1.1.0` tag and running the reviewed release workflow.
-- crates.io publication (preceded by a fresh read-only collision check immediately before).
-- Configuring Docker Hub secrets/variables and enabling the mirror.
-- Submitting WinGet/Scoop/Homebrew/Chocolatey/AUR/Nixpkgs/Termux packages.
-- Confirming each ecosystem's final exact registry identifier at submission time.
+- crates.io publication of `zuli-proxybroker-extended` 1.1.0 (preceded by a fresh read-only
+  collision check immediately before the actual upload; not yet performed).
+- Configuring Docker Hub secrets/variables and enabling the mirror (not yet configured).
+- Submitting WinGet/Scoop/Homebrew/Chocolatey/AUR/Nixpkgs/Termux packages (nothing submitted).
+- Final per-ecosystem collision/identity checks immediately before the first submission of each.
 
 ## Required notices in every distributed artifact
 
