@@ -90,11 +90,37 @@ feature profile.
 
 Download the matching `x86_64-pc-windows-msvc` asset from the
 [v1.1.0 release](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.1.0),
-verify its `.sha256`, and extract it. The v1.0.0 x86_64 Windows release was manually
-validated (2026-08-08) on a supervised Windows host, including checksum
-verification, CLI execution, bounded live proxy discovery/validation, and a local
-rotating-proxy request. This does not claim every Windows version, architecture,
-network, or long-running workload.
+verify its `.sha256`, and extract it. The v1.1.0 x86_64 Windows release was manually
+validated on a Windows host; all of the following commands were successfully exercised:
+
+```powershell
+.\proxybroker.exe --version
+.\proxybroker.exe --help
+.\proxybroker.exe grab --limit 10
+.\proxybroker.exe find --types HTTP HTTPS --limit 10
+.\proxybroker.exe serve --types HTTP --host 127.0.0.1:8888
+```
+
+This does not claim every Windows version, architecture, network, or long-running workload.
+
+`proxybroker.exe` is a command-line application, not a GUI application. Double-clicking
+`proxybroker.exe` may briefly open a console and then close because no persistent command
+was supplied; that behavior by itself is not evidence of a crash. After extracting the ZIP,
+open PowerShell in the extracted directory and invoke the executable with commands such as:
+
+```powershell
+.\proxybroker.exe --version
+.\proxybroker.exe --help
+.\proxybroker.exe grab --limit 10
+.\proxybroker.exe find --types HTTP HTTPS --limit 10
+.\proxybroker.exe serve --types HTTP --host 127.0.0.1:8888
+```
+
+`serve` remains running until the user stops it with Ctrl+C.
+
+`proxybroker-v1.1.0-x86_64-pc-windows-msvc.zip` contains the executable. The matching
+`.sha256` file is only checksum-verification material; it is not another Windows
+program or version.
 
 ### Build from source
 
