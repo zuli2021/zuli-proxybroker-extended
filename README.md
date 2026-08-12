@@ -14,6 +14,12 @@ includes offline DB-IP country lookup and optional Redis-backed storage.
 
 [Download v1.1.0](https://github.com/zuli2021/zuli-proxybroker-extended/releases/tag/v1.1.0) · [Documentation](https://zuli2021.github.io/zuli-proxybroker-extended/) · [Installation](#installation)
 
+## See Zuli ProxyBroker Extended in action
+
+See the core Zuli ProxyBroker Extended workflow in action — public proxy discovery, validation, classification, rotation, and the available CLI / distribution entry points.
+
+![Zuli ProxyBroker Extended demo](docs/assets/zuli-proxybroker-extended-demo.gif)
+
 ## Highlights
 
 - Discover and validate public HTTP/HTTPS, SOCKS4, and SOCKS5 proxies.
